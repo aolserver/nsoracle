@@ -613,6 +613,8 @@ oci_error_p (char *file, int line, char *fn,
 				     errorbuf,
 				     sizeof errorbuf,
 				     OCI_HTYPE_ERROR);
+          if (errorcode == 1405)
+            return 0;
 	  if (oci_status1)
 	    snprintf (msgbuf, STACK_BUFFER_SIZE, "`OCIErrorGet ()' error");
 	  else
