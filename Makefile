@@ -20,7 +20,7 @@ endif
 VER_ = $(subst .,_,$(VER))
 
 #
-# Module Pretty-name (yes, this will become important shortly)
+# Module Pretty-name (used to generalize the tag and file-release targets)
 #
 MODNAME  =  nsoracle
 
@@ -95,6 +95,34 @@ clobber: clean
 
 distclean: clobber
 	$(RM) TAGS core
+
+#
+# Help the poor developer
+#
+help:
+	@echo "**" 
+	@echo "** DEVELOPER HELP FOR THIS $(MODNAME)"
+	@echo "**"
+	@echo "** make tag VER=X.Y"
+	@echo "**     Tags the module CVS code with the given tag."
+	@echo "**     You can tag the CVS copy at any time, but follow the rules."
+	@echo "**     VER must be of the form:"
+	@echo "**         X.Y"
+	@echo "**         X.YbetaN"
+	@echo "**     You should browse CVS at SF to find the latest tag."
+	@echo "**"
+	@echo "** make file-release VER=X.Y"
+	@echo "**     Checks out the code for the given tag from CVS."
+	@echo "**     The result will be a releaseable tar.gz file of"
+	@echo "**     the form: module-X.Y.tar.gz."
+	@echo "**"
+
+#
+# Tag the code in CVS right now
+#
+tag:
+	@if [ "$$VER" = "" ]; then echo 1>&2 "VER must be set to version number!"; exit 1; fi
+	cvs rtag v$(VER_) $(MODNAME)
 
 #
 # Create a distribution file release

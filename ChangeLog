@@ -1,4 +1,8 @@
-2002-10-09    <scott@scottg.net>
+2002-12-13  Scott S. Goodwin  <scott@scottg.net>
+
+	* Makefile: Added 'make help' and 'make tag' targets.
+
+2002-10-09  Scott S. Goodwin  <scott@scottg.net>
 
 	* Makefile: Added 'file-release' target. This target will
 	automatically check out the tag version you give it and package it
@@ -9,7 +13,7 @@
 
 	* ora8.c: Jeff Davis applied patch 620469, by Matthew Krenzer.
 
-2002-10-03    <scott@scottg.net>
+2002-10-03  Scott S. Goodwin  <scott@scottg.net>
 
 	* all: Applied nsora 2.7 (only the ora8.c file). Tagged as
 	v2_7beta1.
