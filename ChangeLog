@@ -1,3 +1,7 @@
+2004-01-09  Scott S. Goodwin  <scott@scottg.net>
+
+    * Release: nsoracle 2.7
+
 2004-01-08  Jeremy Collins <jeremy.collins@tclsource.org>
 
     * Makefile: Added LDFLAGS, and LIBS variables back to
