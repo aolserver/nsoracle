@@ -137,8 +137,11 @@ typedef dvoid oci_descriptor_t;
 
 #include <ns.h>
 
-#if !defined(NS_AOLSERVER_3_PLUS)
+#ifndef NS_DML
 #include <nsdb.h>
+#endif
+
+#if !defined(NS_AOLSERVER_3_PLUS)
 #include <nstcl.h>
 #define NS_EXPORT
 #endif
