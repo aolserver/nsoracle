@@ -1,0 +1,3 @@
+#ifndef ORA8_DRIVER_VERSION
+#define ORA8_DRIVER_VERSION "2.5"
+#endif
