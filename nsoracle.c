@@ -64,7 +64,8 @@ typedef int (OracleCmdProc) (ClientData clientData,
 
 Tcl_ObjCmdProc OracleObjCommand;
 
-OracleCmdProc OraclePLSQLObjCommand,
+OracleCmdProc 
+    OraclePLSQLObjCommand,
     OracleExecPLSQLObjCommand,
     OracleExecPLSQLBindObjCommand,
     OracleResultRowsObjCommand,
@@ -218,11 +219,9 @@ static char *ora_best_row_id(Ns_DString * pds, Ns_DbHandle * dbh,
  */
 
 #ifdef __GNUC__
-#define lexpos() \
-  __FILE__, __LINE__, __FUNCTION__
+#define lexpos() __FILE__, __LINE__, __FUNCTION__
 #else
-#define lexpos() \
-	__FILE__, __LINE__, "<unknown>"
+#define lexpos() __FILE__, __LINE__, "<unknown>"
 #endif
 
 /* result codes from stream_write_lob
@@ -251,9 +250,17 @@ static int stream_read_lob(Tcl_Interp * interp, Ns_DbHandle * dbh,
                            int rowind, OCILobLocator * lobl, char *path,
                            ora_connection_t * connection);
 
-void OracleDescribeSynonym (OCIDescribe *descHandlePtr, OCIParam *paramHandlePtr, ora_connection_t *connection, Ns_DbHandle *dbh, Tcl_Interp *interp );
-void OracleDescribePackage (OCIDescribe *descHandlePtr, OCIParam *paramHandlePtr, ora_connection_t *connection, Ns_DbHandle *dbh, char *package, Tcl_Interp *interp );
-void OracleDescribeArguments (OCIDescribe *descHandlePtr, OCIParam *paramHandlePtr, ora_connection_t *connection, Ns_DbHandle *dbh, Tcl_Interp *interp, Tcl_Obj *list);
+void OracleDescribeSynonym (OCIDescribe *descHandlePtr, 
+        OCIParam *paramHandlePtr, ora_connection_t *connection, 
+        Ns_DbHandle *dbh, Tcl_Interp *interp );
+
+void OracleDescribePackage (OCIDescribe *descHandlePtr, 
+        OCIParam *paramHandlePtr, ora_connection_t *connection, 
+        Ns_DbHandle *dbh, char *package, Tcl_Interp *interp );
+
+void OracleDescribeArguments (OCIDescribe *descHandlePtr, 
+        OCIParam *paramHandlePtr, ora_connection_t *connection, 
+        Ns_DbHandle *dbh, Tcl_Interp *interp, Tcl_Obj *list);
 
 /* Config parameter control */
 static int debug_p = NS_FALSE;  
@@ -261,7 +268,7 @@ static int max_string_log_length = 0;
 static int lob_buffer_size = 16384;
 static int char_expansion;
 
-/* Prefetch parameters, if zero leave defaults*/
+/* Prefetch parameters, if zero leave defaults */
 static ub4 prefetch_rows = 0;
 static ub4 prefetch_memory = 0;
 
@@ -284,8 +291,8 @@ static Ns_DbProc ora_procs[] = {
     {DbFn_Cancel,       (void *) ora_flush},
     {DbFn_ServerInit,   (void *) ora_server_init},
     {DbFn_ResetHandle,  (void *) ora_reset_handle},
-/* these aren't supported in AOLserver 3 */
 #if !defined(NS_AOLSERVER_3_PLUS)
+    /* These aren't supported in AOLserver 3 */
     {DbFn_GetTableInfo, (void *) ora_get_table_info},
     {DbFn_TableList,    (void *) ora_table_list},
     {DbFn_BestRowId,    (void *) ora_best_row_id},
@@ -321,7 +328,7 @@ static int snprintf(char *buf, int len, const char *fmt, ...)
  *
  */
 
-/*{{{ string_list_elt_t*/
+/*{{{ string_list_elt_t */
 static 
 string_list_elt_t *string_list_elt_new(char *string)
 {
@@ -334,7 +341,7 @@ string_list_elt_t *string_list_elt_new(char *string)
 }
 /*}}}*/
 
-/*{{{ string_list_len*/
+/*{{{ string_list_len */
 static int 
 string_list_len(string_list_elt_t * head)
 {
@@ -349,7 +356,7 @@ string_list_len(string_list_elt_t * head)
 }
 /*}}}*/
 
-/*{{{ string_list_free_list*/
+/*{{{ string_list_free_list */
 static void 
 string_list_free_list(string_list_elt_t * head)
 {
@@ -365,7 +372,7 @@ string_list_free_list(string_list_elt_t * head)
 }
 /*}}}*/
 
-/*{{{ string_list_elt_t*/
+/*{{{ string_list_elt_t */
 static 
 string_list_elt_t *parse_bind_variables(char *input)
 {
@@ -436,11 +443,10 @@ string_list_elt_t *parse_bind_variables(char *input)
 }
 /*}}}*/
 
-/*{{{ oci_error_p*/
+/*{{{ oci_error_p */
 /* we call this after every OCI call, i.e., a couple of times during
    each fetch of a row 
 */
-
 static int
 oci_error_p(char *file, int line, char *fn,
             Ns_DbHandle * dbh, char *ocifn, char *query,
@@ -587,12 +593,11 @@ oci_error_p(char *file, int line, char *fn,
 }
 /*}}}*/
 
-/*{{{ tcl_error_p*/
+/*{{{ tcl_error_p */
 /* tcl_error_p is only used for ns_ora and potentialy other new Tcl commands
    does not log the error and does not Ns_DbSetException but instead just
    tells the Tcl interpreter about it
  */
-
 static int
 tcl_error_p(char *file, int line, char *fn,
             Tcl_Interp * interp,
@@ -704,9 +709,8 @@ tcl_error_p(char *file, int line, char *fn,
 }
 /*}}}*/
 
-/*{{{ error*/
+/*{{{ error */
 /* for logging errors that come from C code rather than Oracle unhappiness */
-
 static void 
 error(char *file, int line, char *fn, char *fmt, ...)
 {
@@ -730,11 +734,10 @@ error(char *file, int line, char *fn, char *fmt, ...)
 } 
 /*}}}*/
 
-/*{{{ log*/
+/*{{{ log */
 /* for optional logging of all kinds of random stuff, turn on 
    debug in the [ns/db/driver/drivername] section of your nsd.ini
 */
-
 static void 
 log(char *file, int line, char *fn, char *fmt, ...)
 {
@@ -761,20 +764,21 @@ log(char *file, int line, char *fn, char *fmt, ...)
 } 
 /*}}}*/
 
-/*{{{ downcase*/
-static void downcase(char *s)
+/*{{{ downcase */
+static void 
+downcase(char *s)
 {
     for (; *s; s++)
         *s = tolower(*s);
 } 
 /*}}}*/
 
-/*{{{ nilp*/
+/*{{{ nilp */
 /* nilp is misnamed to some extent; handle empty or overly long strings 
    before printing them out to logs 
 */
-static char 
-*nilp(char *s)
+static char *
+nilp(char *s)
 {
     if (s == 0)
         return "[nil]";
@@ -2460,8 +2464,8 @@ OracleExecPLSQLObjCommand (ClientData clientData, Tcl_Interp *interp,
     oci_status_t       oci_status;
       
     if (objc != 4) {
-        Tcl_AppendResult (interp, "wrong number of args: should be `",
-                Tcl_GetString(objv[0]), " exec_plsql dbId sql'", NULL);
+        Tcl_WrongNumArgs(interp, 2, objv, 
+                "dbhandle dbId sql");
 	return TCL_ERROR;
     }
       
@@ -4508,14 +4512,15 @@ OracleDescribeArguments (OCIDescribe       *descHandlePtr,
  *
  */
 
-/*{{{ Ns_DbDriverInit*/
+/*{{{ Ns_DbDriverInit */
 /* Entry point (called by AOLserver when driver loaded) 
 
    note that this does not leave behind any structures or state outside
    of reading the configuraton parameters, as well as
    initializing OCI and registering our functions
 */
-NS_EXPORT int Ns_DbDriverInit(char *hdriver, char *config_path)
+NS_EXPORT int 
+Ns_DbDriverInit(char *hdriver, char *config_path) 
 {
     int ns_status;
     oci_status_t oci_status;
@@ -4577,31 +4582,55 @@ NS_EXPORT int Ns_DbDriverInit(char *hdriver, char *config_path)
 }
 /*}}}*/
 
-/*{{{ ora_name*/
-static char *ora_name(Ns_DbHandle * dummy)
-{
-    log(lexpos(), "entry (dummy %p)", dummy);
-
-    return ora_driver_name;
-}
-/*}}}*/
-
-/*{{{ ora_db_type*/
-static char *ora_db_type(Ns_DbHandle * dummy)
-{
-    log(lexpos(), "entry (dummy %p)", dummy);
-
-    return ora_driver_name;
-}
-/*}}}*/
-
-/*{{{ ora_open_db*/
-/* this is the proc AOLserver calls when it wants a new connection
-   it mallocs a connection structure and then stores it in a field
-   of handle structure created and maintained by AOLserver
+/*{{{ ora_name */
+/*----------------------------------------------------------------------
+ * ora_name --
+ *
+ *      Return name of database driver.
+ *
+ *----------------------------------------------------------------------
  */
+static char *
+ora_name(Ns_DbHandle * dummy) 
+{
+    log(lexpos(), "entry (dummy %p)", dummy);
 
-static int ora_open_db(Ns_DbHandle * dbh)
+    return ora_driver_name;
+}
+/*}}}*/
+
+/*{{{ ora_db_type */
+/*----------------------------------------------------------------------
+ * ora_db_type --
+ *
+ *      This function returns the string which identifies the database
+ *      type.  
+ *
+ *      Implements [ns_db dbtype] 
+ *
+ *----------------------------------------------------------------------
+ */
+static char *
+ora_db_type(Ns_DbHandle * dummy) 
+{
+    log(lexpos(), "entry (dummy %p)", dummy);
+
+    return ora_driver_name;
+}
+/*}}}*/
+
+/*{{{ ora_open_db */
+/*----------------------------------------------------------------------
+ * ora_open_db --
+ *
+ *      Opens a database connection.
+ *
+ *      Implements [ns_db open] 
+ *
+ *----------------------------------------------------------------------
+ */
+static int 
+ora_open_db(Ns_DbHandle * dbh) 
 {
     oci_status_t oci_status;
     ora_connection_t *connection;
@@ -4640,8 +4669,9 @@ static int ora_open_db(Ns_DbHandle * dbh)
     connection->n_columns = 0;
     connection->fetch_buffers = NULL;
 
-    /* AOLserver, in their database handle structure, gives us one field
-       to store our connection structure */
+    /*  AOLserver, in their database handle structure, gives us one field
+     *  to store our connection structure.
+     */
     dbh->connection = connection;
 
     /* environment; sets connection->env */
@@ -4737,13 +4767,18 @@ static int ora_open_db(Ns_DbHandle * dbh)
 }
 /*}}}*/
 
-/*{{{ ora_close_db*/
-/* the objective here is to free all the handles that we created in
-   ora_open_db, Ns_Free the connection structure and set the AOLserver
-   db handle's connection field to null 
-*/
-
-static int ora_close_db(Ns_DbHandle * dbh)
+/*{{{ ora_close_db */
+/*----------------------------------------------------------------------
+ * ora_close_db --
+ *
+ *      Closes a database connection and clean up handle.
+ *
+ *      Implements [ns_db close] 
+ *
+ *----------------------------------------------------------------------
+ */
+static int 
+ora_close_db(Ns_DbHandle * dbh) 
 {
     oci_status_t oci_status;
     ora_connection_t *connection;
@@ -4789,14 +4824,18 @@ static int ora_close_db(Ns_DbHandle * dbh)
 }
 /*}}}*/
 
-/*{{{ ora_dml*/
-/* this is called when Tcl script invokes [ns_db dml ...] 
-   we don't really care what it is (and don't tell ora_exec)
-   except that we raise an error if ora_exec tells us that it
-   was not a DML statement 
-*/
-
-static int ora_dml(Ns_DbHandle * dbh, char *sql)
+/*{{{ ora_dml */
+/*----------------------------------------------------------------------
+ * ora_dml --
+ *
+ *      Execute a DML statement.
+ *
+ *      Implements [ns_db dml] 
+ *
+ *----------------------------------------------------------------------
+ */
+static int 
+ora_dml(Ns_DbHandle * dbh, char *sql) 
 {
     int ns_status;
 
@@ -4810,8 +4849,18 @@ static int ora_dml(Ns_DbHandle * dbh, char *sql)
 }
 /*}}}*/
 
-/*{{{ ora_exec*/
-static int ora_exec(Ns_DbHandle * dbh, char *sql)
+/*{{{ ora_exec */
+/*----------------------------------------------------------------------
+ * ora_exec --
+ *
+ *      Execute a query regardless of type.
+ *
+ *      Implements [ns_db exec] 
+ *
+ *----------------------------------------------------------------------
+ */
+static int 
+ora_exec(Ns_DbHandle * dbh, char *sql) 
 {
     oci_status_t oci_status;
     ora_connection_t *connection;
@@ -4934,8 +4983,19 @@ static int ora_exec(Ns_DbHandle * dbh, char *sql)
 }
 /*}}}*/
 
-/*{{{ ora_flush*/
-static int ora_flush(Ns_DbHandle * dbh)
+/*{{{ ora_flush */
+/*----------------------------------------------------------------------
+ * ora_flush --
+ *
+ *      Used to clean up after an error or after we've reached the
+ *      end of a result  set.  Frees fetch buffers.
+ *
+ *      Implements [ns_db flush] 
+ *
+ *----------------------------------------------------------------------
+ */
+static int 
+ora_flush(Ns_DbHandle * dbh)
 {
     ora_connection_t *connection;
 
@@ -4956,14 +5016,19 @@ static int ora_flush(Ns_DbHandle * dbh)
 }
 /*}}}*/
 
-/*{{{ ora_bindrow*/
-/* AOLserver calls this one per query and gets back an ns_set of null
-   strings keyed by column names; the ns_set actually comes from row
-   field of the db handle struct.  The ns_set is reused every time a row 
-   is fetched 
-*/
-
-static Ns_Set *ora_bindrow(Ns_DbHandle * dbh)
+/*{{{ ora_bindrow */
+/*----------------------------------------------------------------------
+ * ora_bindrow --
+ *
+ *      Return a list of column names in an Ns_Set.  This is used 
+ *      later to fetch rows into.
+ *
+ *      Implements [ns_db bindrow] 
+ *
+ *----------------------------------------------------------------------
+ */
+static Ns_Set *
+ora_bindrow(Ns_DbHandle * dbh) 
 {
     oci_status_t oci_status;
     ora_connection_t *connection;
@@ -5224,9 +5289,18 @@ static Ns_Set *ora_bindrow(Ns_DbHandle * dbh)
 }
 /*}}}*/
 
-/*{{{ ora_select*/
-/* ora_select = do an exec and then a bindrow */
-static Ns_Set *ora_select(Ns_DbHandle * dbh, char *sql)
+/*{{{ ora_select */
+/*----------------------------------------------------------------------
+ * ora_select --
+ *
+ *      Execute a select statement and bindrow it.
+ *
+ *      Implements [ns_db select] 
+ *
+ *----------------------------------------------------------------------
+ */
+static Ns_Set *
+ora_select(Ns_DbHandle * dbh, char *sql)
 {
     int ns_status;
 
@@ -5247,8 +5321,16 @@ static Ns_Set *ora_select(Ns_DbHandle * dbh, char *sql)
 }
 /*}}}*/
 
-/*{{{ ora_get_row*/
-/* this is called every time someone calls [ns_db getrow ...] */
+/*{{{ ora_get_row */
+/*----------------------------------------------------------------------
+ * ora_get_row --
+ *
+ *      Fetch the next row of the result set into the row Ns_Set.
+ *
+ *      Implements [ns_db getrow] 
+ * 
+ *----------------------------------------------------------------------
+ */
 static int 
 ora_get_row(Ns_DbHandle * dbh, Ns_Set * row)
 {
@@ -5286,12 +5368,14 @@ ora_get_row(Ns_DbHandle * dbh, Ns_Set * row)
     oci_status = OCIStmtFetch(connection->stmt,
                               connection->err,
                               1, OCI_FETCH_NEXT, OCI_DEFAULT);
+
     if (oci_status == OCI_NEED_DATA) {
         ;
     } else if (oci_status == OCI_NO_DATA) {
-        /* we've reached beyond the last row of the select, so flush the
-           statement and tell AOLserver that it isn't going to get
-           anything more out of us. */
+        /*  We've reached beyond the last row of the select, so flush the
+         *  statement and tell AOLserver that it isn't going to get
+         *  anything more out of us. 
+         */
         log(lexpos(), "return NS_END_DATA;");
 
         if (flush_handle(dbh) != NS_OK)
@@ -5299,11 +5383,12 @@ ora_get_row(Ns_DbHandle * dbh, Ns_Set * row)
         else
             return NS_END_DATA;
     } else if (oci_error_p(lexpos(), dbh, "OCIStmtFetch", 0, oci_status)) {
-        /* we got some other kind of error */
+        /* We got some other kind of error */
         flush_handle(dbh);
         return NS_ERROR;
     }
-    /* fetched succeeded; copy fetch buffers (one/column) into the ns_set */
+
+    /* Fetched succeeded; copy fetch buffers (one/column) into the ns_set */
     for (i = 0; i < connection->n_columns; i++) {
         fetch_buffer_t *fetchbuf = &connection->fetch_buffers[i];
 
@@ -5311,9 +5396,9 @@ ora_get_row(Ns_DbHandle * dbh, Ns_Set * row)
         case OCI_TYPECODE_CLOB:
         case OCI_TYPECODE_BLOB:
 
-            if (fetchbuf->is_null == -1)
+            if (fetchbuf->is_null == -1) {
                 Ns_SetPutValue(row, i, "");
-            else if (fetchbuf->is_null != 0) {
+            } else if (fetchbuf->is_null != 0) {
                 error(lexpos(), "invalid fetch buffer is_null");
                 flush_handle(dbh);
                 return NS_ERROR;
@@ -5488,10 +5573,17 @@ ora_get_row(Ns_DbHandle * dbh, Ns_Set * row)
 }
 /*}}}*/
 
-/*{{{ ora_0or1row*/
-/* To support the [ns_ora 0or1row ...] and [ns_ora 1row ...] commands */
-static Ns_Set *ora_0or1row(Tcl_Interp * interp, Ns_DbHandle * handle,
-                           Ns_Set * row, int *nrows)
+/*{{{ ora_0or1row */
+/*----------------------------------------------------------------------
+ * ora_0or1row --
+ *
+ *      Implements [ns_db 0or1row] 
+ *
+ *----------------------------------------------------------------------
+ */
+static Ns_Set *
+ora_0or1row(Tcl_Interp * interp, Ns_DbHandle * handle, 
+        Ns_Set * row, int *nrows)
 {
     log(lexpos(), "entry");
     if (row != NULL) {
@@ -5526,20 +5618,17 @@ static Ns_Set *ora_0or1row(Tcl_Interp * interp, Ns_DbHandle * handle,
 }
 /*}}}*/
 
-/*{{{ ora_reset_handle*/
-/* called by AOLserver when handle is returned by thread to pool; we
-   must be careful to rollback any uncommitted work being done by a
-   thread so that it doesn't get committed by another thread
-
-   The AOLserver guys put this in for us because of the screw case
-   where thread 1 deducts $1 million from the savings account then
-   errs out before adding it to the checking ccount.  You don't want
-   thread 2 picking up the same db conn and committing this
-   half-finished transaction.
-
+/*{{{ ora_reset_handle */
+/*----------------------------------------------------------------------
+ * ora_reset_handle --
+ *
+ *      Called by AOLserver when a handle is returned to the
+ *      database pool.
+ *
+ *----------------------------------------------------------------------
  */
-
-static int ora_reset_handle(Ns_DbHandle * dbh)
+static int 
+ora_reset_handle(Ns_DbHandle * dbh)
 {
     oci_status_t oci_status;
     ora_connection_t *connection;
@@ -5570,8 +5659,9 @@ static int ora_reset_handle(Ns_DbHandle * dbh)
 }
 /*}}}*/
 
-/*{{{ ora_interp_init*/
-static int ora_interp_init(Tcl_Interp * interp, void *dummy)
+/*{{{ ora_interp_init */
+static int 
+ora_interp_init(Tcl_Interp * interp, void *dummy)
 {
     Tcl_CreateObjCommand (interp, "ns_ora", OracleObjCommand, 
             (ClientData) NULL, (Tcl_CmdDeleteProc *) NULL);
@@ -5585,8 +5675,9 @@ static int ora_interp_init(Tcl_Interp * interp, void *dummy)
 }          
 /*}}}*/
 
-/*{{{ ora_server_init*/
-static int ora_server_init(char *hserver, char *hmodule, char *hdriver)
+/*{{{ ora_server_init */
+static int 
+ora_server_init(char *hserver, char *hmodule, char *hdriver)
 {
     log(lexpos(), "entry (%s, %s, %s)", nilp(hserver), nilp(hmodule),
         nilp(hdriver));
@@ -5609,11 +5700,9 @@ static int ora_server_init(char *hserver, char *hmodule, char *hdriver)
  * to the normal operation of the ACS (ArsDigita Community System).
  * We include definitions for them here
  */
-
-
 static int
 ora_get_column_index(Tcl_Interp * interp, Ns_DbTableInfo * tinfo,
-                     char *indexStr, int *index)
+        char *indexStr, int *index) 
 {
     int result = TCL_ERROR;
 
@@ -5635,15 +5724,14 @@ ora_get_column_index(Tcl_Interp * interp, Ns_DbTableInfo * tinfo,
 
   bailout:
     return (result);
-
-}                               /* ora_get_column_index */
+}
 /*}}}*/
 
-/*{{{ ora_column_command*/
+/*{{{ ora_column_command */
 /* re-implement the ns_column command */
 int
 ora_column_command(ClientData dummy, Tcl_Interp * interp,
-                   int argc, char *argv[])
+        int argc, char *argv[]) 
 {
     int result = TCL_ERROR;
     Ns_DbHandle *handle;
@@ -5761,16 +5849,14 @@ ora_column_command(ClientData dummy, Tcl_Interp * interp,
 
     Ns_DbFreeTableInfo(tinfo);
     return (result);
-
-}                               /* ora_column_command */
+}
 /*}}}*/
 
-/*{{{ ora_table_command*/
+/*{{{ ora_table_command */
 /* re-implement the ns_table command */
-
 int
 ora_table_command(ClientData dummy, Tcl_Interp * interp,
-                  int argc, char *argv[])
+        int argc, char *argv[]) 
 {
     int result = TCL_ERROR;
     Ns_DString tables_string;
@@ -5871,13 +5957,12 @@ ora_table_command(ClientData dummy, Tcl_Interp * interp,
 
   bailout:
     return (result);
-
-}                               /* ora_table_command */
-
+}
 /*}}}*/
 
-/*{{{ Ns_DbTableInfo*/
-static Ns_DbTableInfo *Ns_DbNewTableInfo(char *table)
+/*{{{ Ns_DbTableInfo */
+static Ns_DbTableInfo *
+Ns_DbNewTableInfo(char *table) 
 {
     Ns_DbTableInfo *tinfo;
 
@@ -5890,12 +5975,12 @@ static Ns_DbTableInfo *Ns_DbNewTableInfo(char *table)
 
     return (tinfo);
 
-}                               /* Ns_DbNewTableInfo */
+}
 /*}}}*/
 
-/*{{{ Ns_DbAddColumnInfo*/
+/*{{{ Ns_DbAddColumnInfo */
 static void
-Ns_DbAddColumnInfo(Ns_DbTableInfo * tinfo, Ns_Set * column_info)
+Ns_DbAddColumnInfo(Ns_DbTableInfo * tinfo, Ns_Set * column_info) 
 {
     tinfo->ncolumns++;
 
@@ -5906,11 +5991,12 @@ Ns_DbAddColumnInfo(Ns_DbTableInfo * tinfo, Ns_Set * column_info)
     }
     tinfo->columns[tinfo->ncolumns - 1] = column_info;
 
-}                               /* Ns_DbAddColumnInfo */
+}
 /*}}}*/
 
-/*{{{ Ns_DbFreeTableInfo*/
-static void Ns_DbFreeTableInfo(Ns_DbTableInfo * tinfo)
+/*{{{ Ns_DbFreeTableInfo */
+static void 
+Ns_DbFreeTableInfo(Ns_DbTableInfo * tinfo) 
 {
     int i;
 
@@ -5924,11 +6010,12 @@ static void Ns_DbFreeTableInfo(Ns_DbTableInfo * tinfo)
         Ns_Free(tinfo);
     }
 
-}                               /* Ns_DbFreeTableInfo */
+}
 /*}}}*/
 
-/*{{{ Ns_DbColumnIndex*/
-static int Ns_DbColumnIndex(Ns_DbTableInfo * tinfo, char *name)
+/*{{{ Ns_DbColumnIndex */
+static int 
+Ns_DbColumnIndex(Ns_DbTableInfo * tinfo, char *name) 
 {
     int i;
     int result = -1;
@@ -5944,8 +6031,7 @@ static int Ns_DbColumnIndex(Ns_DbTableInfo * tinfo, char *name)
     }
 
     return (result);
-
-}                               /* Ns_DbColumnIndex */
+}
 /*}}}*/
 
 #endif
