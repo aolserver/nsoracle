@@ -1,0 +1,18 @@
+TODO for nsoracle:
+
+nsoracle 2.8 release:
+    - Migrate code to Tcl_Objs.
+    - Integrate PL/SQL wrapper support.
+    - Replace exec_plsql and exec_plsql_bind with new plsql command.
+    - Remove array_dml command in favor of -arraydml option to dml command.
+    - Update documentation, possibly use DocBook.
+    - Improve handling of options (just -bind right now).
+    - Split OracleSelectObjCommand out. Currently its arraydml, dml, select,
+      0or1row, and 1row.
+
+nsoracle 3.0 release:
+    - Add batch error processing to array dml.
+    - Add ability to execute multiple statements on a single db handle.
+    - Add ability to use Oracle 9i's scrollable cursors.
+    - Improve handling of PL/SQL datatypes, if possible.
+

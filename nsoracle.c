@@ -2056,7 +2056,6 @@ OracleObjCommand (ClientData clientData, Tcl_Interp *interp,
         int objc, Tcl_Obj *CONST objv[])
 {
     Ns_DbHandle *dbh;
-    Tcl_Obj     *result;
 
     static CONST char *subcmds[] = {
         "plsql", "exec_plsql", "exec_plsql_bind", "desc", "select",
@@ -2080,24 +2079,24 @@ OracleObjCommand (ClientData clientData, Tcl_Interp *interp,
         CWriteClob, CWriteBlob
     } subcmd;
 
-    if (Tcl_GetIndexFromObj(interp, objv[1], subcmds, "subcommand", 0,
+    if (objc < 2) {
+        Tcl_WrongNumArgs(interp, 1, objv, "subcommand ?args?");
+        return TCL_ERROR;
+    }
+
+    if (Tcl_GetIndexFromObj(interp, objv[1], subcmds, "command", 0,
             (int *) &subcmd) != TCL_OK) {
         return TCL_ERROR;
     }
 
-    if (objc < 2) {
-        Tcl_WrongNumArgs(interp, 1, objv, "subcommand ?args?");
-        return NS_ERROR;
+    if (Ns_TclDbGetHandle(interp, Tcl_GetString(objv[2]), &dbh) != TCL_OK) {
+        return TCL_ERROR;
     }
 
-    if (Ns_TclDbGetHandle(interp, Tcl_GetString(objv[2]), &dbh) != TCL_OK)
-        return TCL_ERROR;
-
     if (Ns_DbDriverName(dbh) != ora_driver_name) {
-        Tcl_Obj *tclresult = Tcl_NewObj();
-        Tcl_AppendStringsToObj(tclresult, "handle: '",
-                Tcl_GetString(objv[1]), "' is not of type ", ora_driver_name, NULL);
-        Tcl_SetObjResult(interp, tclresult);
+        Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "handle: '",
+                Tcl_GetString(objv[1]), "' is not of type ", 
+                ora_driver_name, NULL);
         return TCL_ERROR;
     }
 
@@ -2112,26 +2111,24 @@ OracleObjCommand (ClientData clientData, Tcl_Interp *interp,
             flush_handle(dbh);
             return OraclePLSQLObjCommand(clientData, interp, 
                     objc, objv, dbh); 
-            break;
 
         case CExecPLSQL:
 
+            flush_handle(dbh);
             return OracleExecPLSQLObjCommand(clientData, interp, 
                     objc, objv, dbh); 
-            break;
 
         case CExecPLSQLBind:
 
+            flush_handle(dbh);
             return OracleExecPLSQLBindObjCommand(clientData, interp,
                     objc, objv, dbh);
-            break;
 
         case CDesc:
 
             flush_handle(dbh);
             return OracleDescObjCommand(clientData, interp, 
                     objc, objv, dbh);
-            break;
 
         case CSelect:
         case CDML:
@@ -2142,20 +2139,17 @@ OracleObjCommand (ClientData clientData, Tcl_Interp *interp,
             flush_handle(dbh);
             return OracleSelectObjCommand(clientData, interp, 
                     objc, objv, dbh);
-            break;
 
         case CGetCols:
 
             flush_handle(dbh);
             return OracleGetColsObjCommand(clientData, interp, 
                     objc, objv, dbh);
-            break;
 
         case CResultRows:
 
             return OracleResultRowsObjCommand(clientData, interp, 
                     objc, objv, dbh);
-            break;
 
         case CClobDML:
         case CClobDMLFile:
@@ -2165,7 +2159,6 @@ OracleObjCommand (ClientData clientData, Tcl_Interp *interp,
             flush_handle(dbh);
             return OracleLobDMLObjCommand(clientData, interp,
                     objc, objv, dbh);
-            break;
 
         case CClobDMLBind:
         case CClobDMLFileBind:
@@ -2175,7 +2168,6 @@ OracleObjCommand (ClientData clientData, Tcl_Interp *interp,
             flush_handle(dbh);
             return OracleLobDMLBindObjCommand(clientData, interp,
                     objc, objv, dbh);
-            break;
 
         case CClobGetFile:
         case CBlobGetFile:
@@ -2185,15 +2177,17 @@ OracleObjCommand (ClientData clientData, Tcl_Interp *interp,
             flush_handle(dbh);
             return OracleLobSelectObjCommand(clientData, interp,
                     objc, objv, dbh);
-            break;
 
         default:
 
-            result = Tcl_NewObj();
-            Tcl_AppendStringsToObj(result, "unknown command \"", 
-                    Tcl_GetString(objv[1]), "\": should be parse, etc", NULL);
-            Tcl_SetObjResult(interp, result);
-
+            Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), 
+                    "unknown command \"", Tcl_GetString(objv[1]), 
+                    "\": should be "
+                    "dml, array_dml, "
+		    "resultid, resultrows, clob_dml, clob_dml_file, "
+		    "clob_get_file, blob_dml, blob_dml_file, "
+		    "blob_get_file, dml, select, 1row, "
+                     "0or1row, or exec_plsql.", NULL);
     }
 
     return NS_OK;
