@@ -320,7 +320,8 @@ static int snprintf(char *buf, int len, const char *fmt, ...)
  */
 
 /*{{{ string_list_elt_t*/
-static string_list_elt_t *string_list_elt_new(char *string)
+static 
+string_list_elt_t *string_list_elt_new(char *string)
 {
     string_list_elt_t *elt =
         (string_list_elt_t *) Ns_Malloc(sizeof(string_list_elt_t));
@@ -328,12 +329,12 @@ static string_list_elt_t *string_list_elt_new(char *string)
     elt->next = 0;
 
     return elt;
-
-}                               /* string_list_elt_new */
+}
 /*}}}*/
 
 /*{{{ string_list_len*/
-static int string_list_len(string_list_elt_t * head)
+static int 
+string_list_len(string_list_elt_t * head)
 {
     int i = 0;
 
@@ -343,12 +344,12 @@ static int string_list_len(string_list_elt_t * head)
     }
 
     return i;
-
-}                               /* string_list_len */
+}
 /*}}}*/
 
 /*{{{ string_list_free_list*/
-static void string_list_free_list(string_list_elt_t * head)
+static void 
+string_list_free_list(string_list_elt_t * head)
 {
     string_list_elt_t *elt;
 
@@ -359,11 +360,12 @@ static void string_list_free_list(string_list_elt_t * head)
         head = elt;
     }
 
-}                               /* string_list_free_list */
+}
 /*}}}*/
 
 /*{{{ string_list_elt_t*/
-static string_list_elt_t *parse_bind_variables(char *input)
+static 
+string_list_elt_t *parse_bind_variables(char *input)
 {
     char *p, lastchar;
     enum { base, instr, bind } state;
@@ -429,8 +431,7 @@ static string_list_elt_t *parse_bind_variables(char *input)
     }
 
     return head;
-
-}                               /* parse_bind_variables */
+}
 /*}}}*/
 
 /*{{{ oci_error_p*/
@@ -581,8 +582,7 @@ oci_error_p(char *file, int line, char *fn,
     Ns_Free(buf);
 
     return 1;
-
-}                               /* oci_error_p */
+}
 /*}}}*/
 
 /*{{{ tcl_error_p*/
@@ -699,14 +699,14 @@ tcl_error_p(char *file, int line, char *fn,
     Ns_Free(buf);
 
     return 1;
-
-}                               /* tcl_error_p */
+}
 /*}}}*/
 
 /*{{{ error*/
 /* for logging errors that come from C code rather than Oracle unhappiness */
 
-static void error(char *file, int line, char *fn, char *fmt, ...)
+static void 
+error(char *file, int line, char *fn, char *fmt, ...)
 {
     char *buf1;
     char *buf;
@@ -725,7 +725,7 @@ static void error(char *file, int line, char *fn, char *fmt, ...)
 
     Ns_Free(buf1);
     Ns_Free(buf);
-}                               /* error */
+} 
 /*}}}*/
 
 /*{{{ log*/
@@ -733,7 +733,8 @@ static void error(char *file, int line, char *fn, char *fmt, ...)
    debug in the [ns/db/driver/drivername] section of your nsd.ini
 */
 
-static void log(char *file, int line, char *fn, char *fmt, ...)
+static void 
+log(char *file, int line, char *fn, char *fmt, ...)
 {
     char *buf1;
     char *buf;
@@ -755,26 +756,23 @@ static void log(char *file, int line, char *fn, char *fmt, ...)
 
     Ns_Free(buf1);
     Ns_Free(buf);
-}                               /* log */
+} 
 /*}}}*/
 
 /*{{{ downcase*/
-/* take a whole string (rather than one character) to lowercase */
-
 static void downcase(char *s)
 {
     for (; *s; s++)
         *s = tolower(*s);
-
-}                               /* downcase */
+} 
 /*}}}*/
 
 /*{{{ nilp*/
 /* nilp is misnamed to some extent; handle empty or overly long strings 
    before printing them out to logs 
 */
-
-static char *nilp(char *s)
+static char 
+*nilp(char *s)
 {
     if (s == 0)
         return "[nil]";
@@ -783,8 +781,7 @@ static char *nilp(char *s)
         return "[too long]";
 
     return s;
-
-}                               /* nilp */
+}
 /*}}}*/
 
 static sb2 null_ind = -1;
@@ -868,7 +865,8 @@ static int allow_sql_p(Ns_DbHandle * dbh, char *sql, int display_sql_p)
  * specified connection.  connection->n_columns must be set to the
  * correct number before calling this function.
  */
-static void malloc_fetch_buffers(ora_connection_t * connection)
+static void 
+malloc_fetch_buffers(ora_connection_t * connection)
 {
     int i;
 
@@ -901,7 +899,7 @@ static void malloc_fetch_buffers(ora_connection_t * connection)
         fetchbuf->n_rows = 0;
     }
 
-}                               /* malloc_fetch_buffers */
+}
 /*}}}*/
 
 /*{{{ free_fetch_buffers*/
@@ -911,7 +909,8 @@ static void malloc_fetch_buffers(ora_connection_t * connection)
  * did when malloc_fetch_buffers was called.  The non-NULL
  * dynamically-allocated components of each fetchbuf will also be freed.
  */
-static void free_fetch_buffers(ora_connection_t * connection)
+static void 
+free_fetch_buffers(ora_connection_t * connection)
 {
     if (connection != NULL && connection->fetch_buffers != NULL) {
         Ns_DbHandle *dbh = connection->dbh;
@@ -970,6 +969,7 @@ static void free_fetch_buffers(ora_connection_t * connection)
 /*}}}*/
 
 /*{{{ handle_builtins*/
+
 /* this gets called on every query or dml.  Usually it will 
    return NS_OK ("I did nothing").  If the SQL is one of our special 
    cases, e.g., "begin transaction", that aren't supposed to go through
@@ -978,8 +978,8 @@ static void free_fetch_buffers(ora_connection_t * connection)
 
    return NS_ERROR on error
 */
-
-static int handle_builtins(Ns_DbHandle * dbh, char *sql)
+static int 
+handle_builtins(Ns_DbHandle * dbh, char *sql)
 {
     oci_status_t oci_status;
     ora_connection_t *connection;
@@ -1029,8 +1029,7 @@ static int handle_builtins(Ns_DbHandle * dbh, char *sql)
 
     /* not handled */
     return NS_OK;
-
-}                               /* handle_builtins */
+}
 /*}}}*/
 
 /*{{{ list_element_put_data*/
@@ -1051,6 +1050,7 @@ list_element_put_data(dvoid * ictxp,
     *alenp = strlen(elements[iter]);
     *piecep = OCI_ONE_PIECE;
     *indpp = NULL;
+
     return OCI_CONTINUE;
 }
 /*}}}*/
@@ -1064,16 +1064,16 @@ ora_append_buf_to_dstring(dvoid * ctxp, CONST dvoid * bufp, ub4 len,
     Ns_DString *retval = (Ns_DString *) ctxp;
 
     switch (piece) {
-    case OCI_LAST_PIECE:
-    case OCI_FIRST_PIECE:
-    case OCI_NEXT_PIECE:
-        Ns_DStringNAppend(retval, (char *) bufp, len);
-        return OCI_CONTINUE;
+        case OCI_LAST_PIECE:
+        case OCI_FIRST_PIECE:
+        case OCI_NEXT_PIECE:
+            Ns_DStringNAppend(retval, (char *) bufp, len);
+            return OCI_CONTINUE;
 
-    default:
-        return OCI_ERROR;
+        default:
+            return OCI_ERROR;
     }
-}                               /* ora_append_buf_to_dstring */
+}
 /*}}}*/
 
 /*{{{ flush_handle*/
@@ -1082,7 +1082,8 @@ ora_append_buf_to_dstring(dvoid * ctxp, CONST dvoid * bufp, ub4 len,
    and after you've fetch the last row 
 */
 
-static int flush_handle(Ns_DbHandle * dbh)
+static int 
+flush_handle(Ns_DbHandle * dbh)
 {
     oci_status_t oci_status;
     ora_connection_t *connection;
@@ -1150,17 +1151,15 @@ static int flush_handle(Ns_DbHandle * dbh)
     }
 
     return NS_OK;
-
-}                               /* flush_handle */
+}
 /*}}}*/
 
 /*{{{ ora_get_table_info*/
 /* this is for the AOLserver extended table info stuff.  Mostly it is
    useful for the /NS/Db pages 
 */
-
-static Ns_DbTableInfo *ora_get_table_info(Ns_DbHandle * dbh, char *table)
-{
+static 
+Ns_DbTableInfo *ora_get_table_info(Ns_DbHandle * dbh, char *table) {
 #define SQL_BUFFER_SIZE 1024
     oci_status_t oci_status;
     ora_connection_t *connection;
@@ -1347,9 +1346,8 @@ static Ns_DbTableInfo *ora_get_table_info(Ns_DbHandle * dbh, char *table)
 
 /*{{{ ora_table_list*/
 /* poke around in Oracle and see what are all the possible tables */
-
-static char *ora_table_list(Ns_DString * pds, Ns_DbHandle * dbh,
-                            int system_tables_p)
+static char 
+*ora_table_list(Ns_DString * pds, Ns_DbHandle * dbh, int system_tables_p)
 {
     oci_status_t oci_status;
     ora_connection_t *connection;
@@ -1481,18 +1479,18 @@ static char *ora_table_list(Ns_DString * pds, Ns_DbHandle * dbh,
 
     return result;
 
-}                               /* ora_table_list */
+}
 /*}}}*/
 
 /*{{{ ora_best_row_id*/
-/* ROWID is the always unique key for a row even when there is no
-   primary key 
-*/
+
+/*  ROWID is the always unique key for a row even when there is no
+ *  primary key 
+ */
 
 #if !defined(NS_AOLSERVER_3_PLUS)
-
-static char *ora_best_row_id(Ns_DString * pds, Ns_DbHandle * dbh,
-                             char *table)
+static char 
+*ora_best_row_id(Ns_DString * pds, Ns_DbHandle * dbh, char *table)
 {
     log(lexpos(), "entry (pds %p, dbh %p, table %s", pds, dbh,
         nilp(table));
@@ -1500,20 +1498,19 @@ static char *ora_best_row_id(Ns_DString * pds, Ns_DbHandle * dbh,
     Ns_DStringNAppend(pds, "rowid", 6);
 
     return pds->string;
-
-}                               /* ora_best_row_id */
-
+}
 #endif
 
 /*}}}*/
 
 /*{{{ no_data*/
-/* this is a function that we register as a callback with Oracle for
-   DML statements that do RETURNING FOOBAR INTO ... (this was
-   necessitated by the clob_dml statement which was necessitated by
-   Oracle's stupid SQL parser that can't handle string literals longer
-   than 4000 chars) 
-*/
+
+/*  This is a function that we register as a callback with Oracle for
+ *  DML statements that do RETURNING FOOBAR INTO ... (this was
+ *  necessitated by the clob_dml statement which was necessitated by
+ *  Oracle's stupid SQL parser that can't handle string literals longer
+ *  than 4000 chars) 
+ */
 
 static sb4
 no_data(dvoid * ctxp, OCIBind * bindp,
@@ -1529,23 +1526,21 @@ no_data(dvoid * ctxp, OCIBind * bindp,
     *piecep = OCI_ONE_PIECE;
 
     return OCI_CONTINUE;
-
-}                               /* no_data */
+}
 /*}}}*/
 
 /*{{{ get_data*/
 /* another callback to register with Oracle */
-
 static sb4
 get_data(dvoid * ctxp, OCIBind * bindp,
          ub4 iter, ub4 index, dvoid ** bufpp, ub4 ** alenp, ub1 * piecep,
          dvoid ** indpp, ub2 ** rcodepp)
 {
-    Ns_DbHandle *dbh;
+    Ns_DbHandle      *dbh;
     ora_connection_t *connection;
-    fetch_buffer_t *buf;
-    oci_status_t oci_status;
-    int i;
+    fetch_buffer_t   *buf;
+    oci_status_t      oci_status;
+    int               i;
 
     log(lexpos(), "entry (dbh %p; iter %d, index %d)", ctxp, iter, index);
 
@@ -1593,8 +1588,7 @@ get_data(dvoid * ctxp, OCIBind * bindp,
     *rcodepp = &rc;
 
     return OCI_CONTINUE;
-
-}                               /* get_data */
+}
 /*}}}*/
 
 /*{{{ stream_read_lob*/
@@ -1774,9 +1768,7 @@ stream_read_lob(Tcl_Interp * interp, Ns_DbHandle * dbh, int rowind,
     }
 
     return status;
-
-}                               /* stream_read_lob */
-
+}
 /*}}}*/
 
 /*{{{ stream_actually_write*/
@@ -1802,8 +1794,7 @@ stream_actually_write(int fd, Ns_Conn * conn, void *bufp, int length,
         to_conn_p);
 
     return bytes_written;
-
-}                               /* stream_actually_write */
+}
 /*}}}*/
 
 /*{{{ stream_write_lob*/
@@ -1813,7 +1804,6 @@ stream_actually_write(int fd, Ns_Conn * conn, void *bufp, int length,
    This was cargo-culted from an example in the OCI programmer's
    guide.
 */
-
 static int
 stream_write_lob(Tcl_Interp * interp, Ns_DbHandle * dbh, int rowind,
                  OCILobLocator * lobl, char *path, int to_conn_p,
@@ -2036,8 +2026,7 @@ stream_write_lob(Tcl_Interp * interp, Ns_DbHandle * dbh, int rowind,
     }
 
     return status;
-
-}                               /* stream_write_lob */
+}
 /*}}}*/
 
 /*
