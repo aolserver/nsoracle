@@ -13,6 +13,13 @@ NSHOME ?= ../aolserver
 endif
 
 #
+# Version number used in release tags. Valid VERs are "1.1c", "2.1", 
+# "2.2beta7". VER "1.1c" will be translated into "v1_1c" by this Makefile.
+# Usage: make file-release VER=1.1c
+#
+VER_ = $(subst .,_,$(VER))
+
+#
 # Module name
 #
 MOD      =  ora8.so
@@ -83,4 +90,16 @@ clobber: clean
 
 distclean: clobber
 	$(RM) TAGS core
+
+#
+# Create a distribution file release
+#
+file-release:
+	@if [ "$$VER" = "" ]; then echo 1>&2 "VER must be set to version number!"; exit 1; fi
+	rm -rf work
+	mkdir work
+	cd work && cvs -d :pserver:anonymous@cvs.aolserver.sourceforge.net:/cvsroot/aolserver co -r v$(VER_) nsoracle
+	mv work/nsoracle work/nsoracle-$(VER)
+	( cd work && tar cvf - nsoracle-$(VER) ) | gzip -9 > nsoracle-$(VER).tar.gz
+	rm -rf work
 

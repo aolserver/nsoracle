@@ -1,3 +1,14 @@
+2002-10-09    <scott@scottg.net>
+
+	* Makefile: Added 'file-release' target. This target will
+	automatically check out the tag version you give it and package it
+	into a file release. Stolen from Rob Mayoff's nscache
+	Makefile. Use it like this:
+
+	    make file-release VER=2.4
+
+	* ora8.c: Jeff Davis applied patch 620469, by Matthew Krenzer.
+
 2002-10-03    <scott@scottg.net>
 
 	* all: Applied nsora 2.7 (only the ora8.c file). Tagged as
