@@ -1018,6 +1018,19 @@ ora_open_db (Ns_DbHandle *dbh)
       error (lexpos (), "invalid args.");
       return NS_ERROR;
     }
+
+  if (! dbh->password)
+    {
+      error (lexpos (), "Missing Password parameter in configuration file for pool %s.", dbh->poolname );
+      return NS_ERROR;
+    }
+
+  if (! dbh->user)
+    {
+      error (lexpos (), "Missing User parameter in configuration file for pool %s.", dbh->poolname);
+      return NS_ERROR;
+    }
+  
   
   connection = Ns_Malloc (sizeof *connection);
 
