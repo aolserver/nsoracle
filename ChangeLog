@@ -1,3 +1,9 @@
+2004-02-12  Jeremy Collins <jeremy.collins@tclsource.org>
+
+    * nsoracle.c, nsoracle.h: Modified new 'plsql' command to use
+    dynamic binding.  This allows large values to be passed in and
+    returned from PL/SQL functions/procedures.
+
 2004-02-11  Jeremy Collins <jeremy.collins@tclsource.org>
 
     * nsoracle.c: Removed duplicate flush_handle code.  Moved

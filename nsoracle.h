@@ -1,9 +1,15 @@
 /* $Id$ */
 
-#define NSORACLE_VERSION "2.7"
-#define STACK_BUFFER_SIZE 20000
+#define NSORACLE_VERSION       "2.8a1"
+#define STACK_BUFFER_SIZE      20000
 #define EXEC_PLSQL_BUFFER_SIZE 4096
-#define EXCEPTION_CODE_SIZE 5
+#define MAX_DYNAMIC_BUFFER     5000000 /* FIXME: should be config param? */
+#define EXCEPTION_CODE_SIZE    5
+
+/* Default values for the configuration parameters */
+#define DEFAULT_DEBUG  			NS_FALSE
+#define DEFAULT_MAX_STRING_LOG_LENGTH	1024
+#define DEFAULT_CHAR_EXPANSION          1
 
 #include <oci.h>
 #include <stdlib.h>
@@ -93,6 +99,8 @@ struct fetch_buffer {
     /* the stuff above does not change as the rows are fetched */
     /* here's where the actual value from a particular row is kept */
     char *buf;
+    char *name;
+    Tcl_Interp *interp;
 
     OCIStmt   *stmt;
 
@@ -296,11 +304,6 @@ static int char_expansion;
 /* Prefetch parameters, if zero leave defaults */
 static ub4 prefetch_rows = 0;
 static ub4 prefetch_memory = 0;
-
-/* Default values for the configuration parameters */
-#define DEFAULT_DEBUG  			NS_FALSE
-#define DEFAULT_MAX_STRING_LOG_LENGTH	1024
-#define DEFAULT_CHAR_EXPANSION          1
 
 static Ns_DbProc ora_procs[] = {
     {DbFn_Name,         (void *) Ns_OracleName},

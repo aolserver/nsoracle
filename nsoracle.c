@@ -19,6 +19,104 @@
  * [ns_ora] implementation.
  */
 
+/*{{{ DynamicBindIn 
+ *----------------------------------------------------------------------
+ * DynamicBindIn --
+ *
+ *      Used to dynamically set IN parameters OraclePLSQLObjCmd. 
+ *
+ *----------------------------------------------------------------------
+ */
+static sb4
+DynamicBindIn(dvoid * ictxp,
+              OCIBind * bindp,
+              ub4 iter,
+              ub4 index,
+              dvoid ** bufpp,
+              ub4 * alenp, ub1 * piecep, dvoid ** indpp)
+{
+    fetch_buffer_t *fbPtr = (fetch_buffer_t *) ictxp;
+    char           *value;
+
+    value = Tcl_GetVar(fbPtr->interp, fbPtr->name, 0);
+
+    *bufpp = value;
+    *alenp = strlen(value) + 1;
+    *piecep = OCI_ONE_PIECE;
+    *indpp = NULL;
+    
+    return OCI_CONTINUE;
+}
+/*}}}*/
+
+/*{{{ DynamicBindOut 
+ *----------------------------------------------------------------------
+ * DynamicBindOut --
+ *
+ *      Used to dynamically allocate more memory for IN/OUT and
+ *      OUT parameters in OraclePLSQLObjCmd.
+ *
+ *----------------------------------------------------------------------
+ */
+static sb4
+DynamicBindOut (dvoid * ctxp, OCIBind * bindp,
+                ub4 iter, ub4 index, dvoid ** bufpp, 
+                ub4 ** alenp, ub1 * piecep,
+                dvoid ** indpp, ub2 ** rcodepp)
+{
+    fetch_buffer_t   *fbPtr = (fetch_buffer_t *) ctxp;
+
+    log(lexpos(), "entry (dbh %p; iter %d, index %d)", ctxp, iter, index);
+
+    if (iter != 0) {
+        error(lexpos(), "iter != 0");
+        return NS_ERROR;
+    }
+
+    switch (*piecep) {
+    case OCI_ONE_PIECE:
+
+        /* 
+         * Oracle needs space for this OUT parameter.  Hopefully
+         * this is enough, if not OCI will call us again with
+         * OCI_NEXT_PIECE and we'll allocate more space.
+         */
+
+        fbPtr->buf = (char *) Ns_Malloc(EXEC_PLSQL_BUFFER_SIZE);
+        fbPtr->buf_size = EXEC_PLSQL_BUFFER_SIZE;
+        memset(fbPtr->buf, (int) '\0', (size_t) EXEC_PLSQL_BUFFER_SIZE);
+
+        *bufpp = fbPtr->buf;
+        **alenp = EXEC_PLSQL_BUFFER_SIZE;
+        *indpp = NULL;
+        *piecep = OCI_ONE_PIECE;
+        
+        break;
+
+    case OCI_NEXT_PIECE:
+        
+        /* 
+         * Oracle still needs more space for this OUT parameter.
+         */
+        
+        fbPtr->buf = (char *) Ns_Realloc(fbPtr->buf, 
+                EXEC_PLSQL_BUFFER_SIZE + fbPtr->buf_size);
+
+        *bufpp = fbPtr->buf + fbPtr->buf_size;
+        **alenp = EXEC_PLSQL_BUFFER_SIZE;
+        *indpp = NULL;
+        *piecep = OCI_NEXT_PIECE;
+
+        fbPtr->buf_size = EXEC_PLSQL_BUFFER_SIZE + fbPtr->buf_size;
+        
+        break;
+
+    }
+
+    return OCI_CONTINUE;
+}
+/*}}}*/
+
 /*{{{ OracleObjCmd
  *----------------------------------------------------------------------
  * OracleObjCmd --
@@ -257,6 +355,8 @@ OraclePLSQLObjCmd (ClientData clientData, Tcl_Interp *interp,
         fetchbuf->type = -1;
 
         value = Tcl_GetVar(interp, var_p->string, 0);
+        fetchbuf->name = var_p->string;;
+        fetchbuf->interp = interp;
 
         if ( (value == NULL) && 
              (strcmp(var_p->string, ref) != 0) ) {
@@ -317,6 +417,16 @@ OraclePLSQLObjCmd (ClientData clientData, Tcl_Interp *interp,
                 return TCL_ERROR;
             }
 
+            if (oci_error_p
+                (lexpos(), dbh, "OCIBindByName", query, oci_status)) {
+                Tcl_SetResult(interp, dbh->dsExceptionMsg.string,
+                              TCL_VOLATILE);
+                Ns_OracleFlush(dbh);
+                string_list_free_list(bind_variables);
+                free_fetch_buffers(connection);
+                return TCL_ERROR;
+            }
+
         } else {
             /* Handle everything else.  If we get this far then
              * we don't have a REF CURSOR at this bind location so we
@@ -327,12 +437,6 @@ OraclePLSQLObjCmd (ClientData clientData, Tcl_Interp *interp,
              */
             
             fetchbuf->external_type = SQLT_STR;
-            fetchbuf->size = EXEC_PLSQL_BUFFER_SIZE;
-
-            fetchbuf->buf = Ns_Malloc(EXEC_PLSQL_BUFFER_SIZE);
-            memset(fetchbuf->buf, (int) '\0', (size_t) EXEC_PLSQL_BUFFER_SIZE);
-            strncpy(fetchbuf->buf, value, EXEC_PLSQL_BUFFER_SIZE);
-            fetchbuf->fetch_length = EXEC_PLSQL_BUFFER_SIZE;
             fetchbuf->is_null = 0;
 
             oci_status = OCIBindByName(connection->stmt,
@@ -340,11 +444,14 @@ OraclePLSQLObjCmd (ClientData clientData, Tcl_Interp *interp,
                                        connection->err,
                                        var_p->string,
                                        strlen(var_p->string),
-                                       fetchbuf->buf,
-                                       fetchbuf->fetch_length,
-                                       fetchbuf->external_type,
-                                       &fetchbuf->is_null,
-                                       0, 0, 0, 0, OCI_DEFAULT);
+
+                                       NULL,                     /* valuep */
+                                       MAX_DYNAMIC_BUFFER,       /* value_sz */
+                                       fetchbuf->external_type,  /* dty */
+                                       &fetchbuf->is_null,       /* indp */
+                                       0,                        /* alenp */ 
+                                       0, 0, 0, 
+                                       OCI_DATA_AT_EXEC);
 
             if (oci_error_p
                 (lexpos(), dbh, "OCIBindByName", query, oci_status)) {
@@ -355,6 +462,22 @@ OraclePLSQLObjCmd (ClientData clientData, Tcl_Interp *interp,
                 free_fetch_buffers(connection);
                 return TCL_ERROR;
             }
+
+            oci_status = OCIBindDynamic(fetchbuf->bind,
+                                        connection->err,
+                                        fetchbuf, DynamicBindIn,
+                                        fetchbuf, DynamicBindOut);
+
+            if (oci_error_p
+                (lexpos(), dbh, "OCIBindByName", query, oci_status)) {
+                Tcl_SetResult(interp, dbh->dsExceptionMsg.string,
+                              TCL_VOLATILE);
+                Ns_OracleFlush(dbh);
+                string_list_free_list(bind_variables);
+                free_fetch_buffers(connection);
+                return TCL_ERROR;
+            }
+
 
         }
 
@@ -369,8 +492,7 @@ OraclePLSQLObjCmd (ClientData clientData, Tcl_Interp *interp,
                                  ? OCI_COMMIT_ON_SUCCESS :
                                  OCI_DEFAULT));
 
-    if (tcl_error_p
-        (lexpos(), interp, dbh, "OCIStmtExecute", query, oci_status)) {
+    if (oci_error_p (lexpos (), dbh, "OCIStmtExecute", query, oci_status)) {
         Ns_OracleFlush(dbh);
         free_fetch_buffers(connection);
         return TCL_ERROR;
@@ -757,11 +879,11 @@ OracleExecPLSQLBindObjCmd (ClientData clientData, Tcl_Interp *interp,
  *                 [ns_ora 1row]
  *                 [ns_ora 0or1row]
  *
- *      ns_ora select dbhandle sql ?ref?
- *      ns_ora dml dbhandle sql ?ref?
- *      ns_ora array_dml dbhandle sql ?ref?
- *      ns_ora 1row dbhandle sql ?ref?
- *      ns_ora 0or1row dbhandle sql ?ref?
+ *      ns_ora select dbhandle sql 
+ *      ns_ora dml dbhandle sql 
+ *      ns_ora array_dml dbhandle sql 
+ *      ns_ora 1row dbhandle sql 
+ *      ns_ora 0or1row dbhandle sql 
  *
  * Results:
  *
@@ -799,8 +921,6 @@ OracleSelectObjCmd (ClientData clientData, Tcl_Interp *interp,
         Tcl_SetResult(interp, "error: no connection", NULL);
         return TCL_ERROR;
     }
-
-    Ns_OracleFlush(dbh);
 
     if (!strcmp(subcommand, "dml")) {
         dml_p = 1;
@@ -1790,13 +1910,6 @@ OracleLobSelectObjCmd (ClientData clientData, Tcl_Interp *interp,
     subcommand = Tcl_GetString(objv[1]);
     connection = dbh->connection;
 
-    if (!connection) {
-        Tcl_SetResult(interp, "error: no connection", NULL);
-        return TCL_ERROR;
-    }
-
-    Ns_OracleFlush(dbh);
-    
     if (!strncmp(subcommand, "write", 5))
         to_conn_p = NS_TRUE;
 
@@ -3986,6 +4099,7 @@ oci_error_p(char *file, int line, char *fn,
                     snprintf(msgbuf, STACK_BUFFER_SIZE, "%s", errorbuf);
                 }
 
+                Ns_Log(Notice, "GETTING OFFSET");
                 oci_status1 = OCIAttrGet(connection->stmt,
                                          OCI_HTYPE_STMT,
                                          &offset,
@@ -4033,6 +4147,8 @@ oci_error_p(char *file, int line, char *fn,
             snprintf(msgbuf, STACK_BUFFER_SIZE, "Error - OCI_CONTINUE");
             break;
     }
+
+    Ns_Log(Notice, "%d, %d", strlen(query), offset);
 
     if (((errorcode == 900) || (offset > 0)) && (strlen(query) >= offset)) {
         /* ora-00900 is invalid sql statment
@@ -4418,29 +4534,6 @@ handle_builtins(Ns_DbHandle * dbh, char *sql)
 }
 /*}}}*/
 
-/*{{{ list_element_put_data*/
-/* For use by OCIBindDynamic: returns the iter'th element (0-relative)
-   of the context pointer taken as an array of strings (char**). */
-static sb4
-list_element_put_data(dvoid * ictxp,
-                      OCIBind * bindp,
-                      ub4 iter,
-                      ub4 index,
-                      dvoid ** bufpp,
-                      ub4 * alenp, ub1 * piecep, dvoid ** indpp)
-{
-    fetch_buffer_t *fetchbuf = ictxp;
-    char **elements = fetchbuf->array_values;
-
-    *bufpp = elements[iter];
-    *alenp = strlen(elements[iter]);
-    *piecep = OCI_ONE_PIECE;
-    *indpp = NULL;
-
-    return OCI_CONTINUE;
-}
-/*}}}*/
-
 /*{{{ ora_append_buf_to_dstring*/
 /* Callback function for LOB case in ora_get_row. */
 static sb4
@@ -4483,6 +4576,29 @@ no_data(dvoid * ctxp, OCIBind * bindp,
     null_ind = -1;
     *indpp = (dvoid *) & null_ind;
     *piecep = OCI_ONE_PIECE;
+
+    return OCI_CONTINUE;
+}
+/*}}}*/
+
+/*{{{ list_element_put_data*/
+/* For use by OCIBindDynamic: returns the iter'th element (0-relative)
+   of the context pointer taken as an array of strings (char**). */
+static sb4
+list_element_put_data(dvoid * ictxp,
+                      OCIBind * bindp,
+                      ub4 iter,
+                      ub4 index,
+                      dvoid ** bufpp,
+                      ub4 * alenp, ub1 * piecep, dvoid ** indpp)
+{
+    fetch_buffer_t *fetchbuf = ictxp;
+    char **elements = fetchbuf->array_values;
+
+    *bufpp = elements[iter];
+    *alenp = strlen(elements[iter]);
+    *piecep = OCI_ONE_PIECE;
+    *indpp = NULL;
 
     return OCI_CONTINUE;
 }
