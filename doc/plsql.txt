@@ -1,0 +1,193 @@
+PL/SQL Tcl Interface
+--------------------
+
+PL/SQL has historically been a bit cumbersome to access through Tcl, so we
+set out to change that. Loosely based on a few concepts borrowed from the
+Python Oracle Driver, the PL/SQL Interface allows us to "import" a PL/SQL
+package into Tcl.
+
+To start using it, all you have to do is
+
+  plsql::init packagename ?-regexp? ?match? ?match? ?-pool pool?
+
+This command creates all of the functions and procedures in the package
+matching match and returns a list of the procedures created. Normally you'll
+just throw away the list, it's just returned for testing purposes.
+
+Keep in mind that the init procedure should be called from a file that will
+be node_loaded, and not within another procedure. It should be treated like a
+proc statement.
+
+  plsql::init pmpc_get get_firm* get_module*
+  proc my_junk { args } {
+    do $stuff
+    set custodian [pmpc_get::get_firm_param 13 "CUSTODIAN" "TOTAL Desktop"]
+    return $custodian
+  }
+
+It's that simple. No dbh_get, no SELECT pmpc_get.get_firm_param(1,...) FROM dual;, 
+just a Tcl procedure.
+
+So far, big deal, right? The PL/SQL Tcl Interface also supports:
+
+  * Multiple OUT and IN/OUT variables
+  * REF CURSORs
+
+Coming soon:
+
+  * LOB support
+
+Differences between IN, OUT, and IN/OUT variables and overloading
+-----------------------------------------------------------------
+
+Binding variables is taken care of, and therefore escaping single quotes is
+unnecessary.
+
+Overloading and typecasting is also taken care of, for the most part. There
+are certain cases where a type can be mistaken for another type, but there
+are ways to explicitly declare a type (see below).
+
+If you run a command with the wrong number or types of arguments, the command
+will fail (TCL_ERROR) and return a short usage summary for the command.
+
+Example:
+
+    nscp 5> plsql::init otest
+    ::otest::test ::otest::test_two ::otest::mytest
+    nscp 6> otest::test_two
+    USAGE: otest::test_two {a IN NUMBER} {b OUT VARCHAR2} {c IN NUMBER DEFAULT}
+    otest::test_two {a IN NUMBER} {b OUT VARCHAR2} {c IN DATE}
+    otest::test_two {a IN NUMBER} {b IN VARCHAR2 DEFAULT} {c IN DATE} {d OUT DATE}
+    nscp 7> otest::mytest
+    USAGE: otest::mytest {a IN VARCHAR2} {b OUT VARCHAR2} {c IN/OUT VARCHAR2}
+
+In the first case, the usage summary is three lines long. That means the
+procedure is overloaded, and any of the lines are valid. The PL/SQL Interface
+will handle choosing which one for you based on the number and types of
+arguments you pass in.
+
+First, IN, OUT, and IN/OUT variables.
+
+    nscp 8> set myInOutVar "hello"
+    nscp 9> otest::mytest "blah" myOutVar myInOutVar
+    0
+    nscp 10> set myOutVar
+    new value of b
+    nscp 11> set myInOutVar
+    the value of c was hello
+
+So, what happened?
+
+  1. ::otest::mytest RETURNED "0"
+  2. myOutVar was set to "new value of b"
+  3. myInOutVar was set to "the value of c was hello"
+
+Note:
+
+  * Pass IN variables as a value, always.
+  * Pass OUT and IN/OUT variables as the name of the variable, always.
+
+Types
+-----
+
+Most of the time, the PL/SQL Interface will figure out the types for you.
+There are some cases, however, when the argument is overloaded as VARCHAR2
+and NUMBER, and you want to pass in the string "2".
+
+Simple.
+
+  ::package::procedure '2'
+
+Single quotes ['2'] explicitly define a value as a VARCHAR2.
+
+Similarly, parenthesis [(today)] explicitly define a value as a DATE.
+
+Numbers are checked first, so if the string is a number and you mean number,
+you're fine.
+
+There is a small caveat here concerning IN/OUT variables. If an IN/OUT
+argument is overloaded (for example, as VARCHAR2 and DATE), sometimes we have
+problems determining the type. Bottom line, don't overload the types of your
+IN/OUT arguments in PL/SQL procedures, and you'll be fine!
+
+Optional Arguments
+------------------
+
+Use "--" to specify option arguments.
+
+
+REF CURSORS
+-----------
+
+This is the big one. I'll start with an example.
+
+    nscp 12> plsql::init ref_example
+    ::ref_example::ref_test ::ref_example::get_clients ::ref_example::ref_test2
+    nscp 13> array set clients [ref_example::get_clients]
+    ....
+    nscp 14> set clients(3:last_name)
+    Collins
+    nscp 15> set clients(columns)
+    client_id last_name first_name social_security_number dob employment occupation retired
+    expected_retire_age spouse marital_status middle_initial employer_name salutation
+    director_securities_firms director_public_companies status
+
+It returned an array containing all the data from the REF CURSOR.  This is the 
+default behavior and can be overriden.
+
+Here's the body of REF_EXAMPLE.GET_CLIENTS:
+
+  In the package declaration:
+
+    TYPE REF_CURSOR IS REF CURSOR;
+    ...
+    FUNCTION get_clients RETURN REF_CURSOR
+    IS
+      result_set REF_CURSOR;
+    BEGIN
+      OPEN result_set FOR SELECT * FROM CLIENT WHERE rownum < 10;
+      RETURN result_set;
+    END; 
+
+In this case, the REF CURSOR is returned, so the Tcl procedure returns it as
+a key value list, which you can [array set].
+
+In other cases, the REF CURSOR variable is passed in as one of the arguments:
+
+    nscp 16> ref_example::ref_test2 clients
+    you just set a ref cursor
+    nscp 14> set clients(3:last_name)
+    Collins
+
+So, what happened?
+
+  1. ::ref_example::ref_test2 RETURNED "you just set a ref cursor"
+  2. clients is now an array of the ref cursor data.
+
+Here's the body of REF_EXAMPLE.REF_TEST2:
+
+  FUNCTION ref_test2(result_set OUT REF_CURSOR) RETURN VARCHAR2
+  IS
+  BEGIN
+    OPEN result_set FOR SELECT * FROM CLIENT WHERE rownum < 10;
+    RETURN 'you just set a ref cursor';
+  END;
+
+You might not like the fact that it returns an array. We didn't, so we changed
+it in our environment. You can do the same. Just run the command
+
+  plsql::set_ref_cursor_hook ::my_ref_cursor_handler
+
+my_ref_cursor_handler must accept the following arguments:
+
+ dbh setid variable_name return
+
+ WHERE
+ dbh is the ns_db handle
+ setid is the ns_set to be fetched
+ variable_name is the name of the variable to be upvar'd
+ array_allowed is 0 or 1: 0 if we're intending to return the value of variable_name, 1 otherwise
+ the procedure should return 0 or 1:
+ 0 if the procedure is going to release the dbh, 1 if the plsql engine should handle it.
+
+The ref_cursor_hook is set system-wide, and affects every call to the PL/SQL Interface.
