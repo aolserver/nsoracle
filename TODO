@@ -1,9 +1,22 @@
 TODO for nsoracle:
 
+Things marked with * are basically finished.
+
 nsoracle 2.8 release:
-    - Migrate code to Tcl_Objs.
-    - Integrate PL/SQL wrapper support.
+*   - Migrate code to Tcl_Objs.
+*   - Integrate PL/SQL wrapper support.
+    - Update documentation, possibly use DocBook.
+    - Improve handling of options (just -bind right now).
+    - Update test framework.
+
+nsoracle 3.0 release:
+    - Add batch error processing to array dml.
+    - Add ability to execute multiple statements on a single db handle.
+    - Add ability to use Oracle 9i's scrollable cursors.
+    - Improve handling of PL/SQL datatypes, if possible.
     - Replace exec_plsql and exec_plsql_bind with new plsql command.
+    - Split OracleSelectObjCommand out. Currently its arraydml, dml, select,
+      0or1row, and 1row.
     - Replace blob_*|clob_* commands with clob|blob command with options.
 
       I think this change might facilitate a cleaner code base, if not then
@@ -15,15 +28,3 @@ nsoracle 2.8 release:
       ns_ora dml <db> -clob ?<lobs>? <sql> ?clob_value? ...
 
     - Remove array_dml command in favor of -arraydml option to dml command.
-    - Update documentation, possibly use DocBook.
-    - Improve handling of options (just -bind right now).
-    - Split OracleSelectObjCommand out. Currently its arraydml, dml, select,
-      0or1row, and 1row.
-    - Update test framework.
-
-nsoracle 3.0 release:
-    - Add batch error processing to array dml.
-    - Add ability to execute multiple statements on a single db handle.
-    - Add ability to use Oracle 9i's scrollable cursors.
-    - Improve handling of PL/SQL datatypes, if possible.
-

@@ -35,10 +35,11 @@ DynamicBindIn(dvoid * ictxp,
               dvoid ** bufpp,
               ub4 * alenp, ub1 * piecep, dvoid ** indpp)
 {
-    fetch_buffer_t *fbPtr = (fetch_buffer_t *) ictxp;
-    char           *value;
+    fetch_buffer_t   *fbPtr = (fetch_buffer_t *) ictxp;
+    ora_connection_t *connection = fbPtr->connection;;
+    char             *value;
 
-    value = Tcl_GetVar(fbPtr->interp, fbPtr->name, 0);
+    value = Tcl_GetVar(connection->interp, fbPtr->name, 0);
 
     *bufpp = value;
     *alenp = strlen(value) + 1;
@@ -75,6 +76,7 @@ DynamicBindOut (dvoid * ctxp, OCIBind * bindp,
 
     switch (*piecep) {
     case OCI_ONE_PIECE:
+    case OCI_NEXT_PIECE:
 
         /* 
          * Oracle needs space for this OUT parameter.  Hopefully
@@ -82,23 +84,6 @@ DynamicBindOut (dvoid * ctxp, OCIBind * bindp,
          * OCI_NEXT_PIECE and we'll allocate more space.
          */
 
-        fbPtr->buf = (char *) Ns_Malloc(EXEC_PLSQL_BUFFER_SIZE);
-        fbPtr->buf_size = EXEC_PLSQL_BUFFER_SIZE;
-        memset(fbPtr->buf, (int) '\0', (size_t) EXEC_PLSQL_BUFFER_SIZE);
-
-        *bufpp = fbPtr->buf;
-        **alenp = EXEC_PLSQL_BUFFER_SIZE;
-        *indpp = NULL;
-        *piecep = OCI_ONE_PIECE;
-        
-        break;
-
-    case OCI_NEXT_PIECE:
-        
-        /* 
-         * Oracle still needs more space for this OUT parameter.
-         */
-        
         fbPtr->buf = (char *) Ns_Realloc(fbPtr->buf, 
                 EXEC_PLSQL_BUFFER_SIZE + fbPtr->buf_size);
 
@@ -109,8 +94,6 @@ DynamicBindOut (dvoid * ctxp, OCIBind * bindp,
 
         fbPtr->buf_size = EXEC_PLSQL_BUFFER_SIZE + fbPtr->buf_size;
         
-        break;
-
     }
 
     return OCI_CONTINUE;
@@ -309,6 +292,7 @@ OraclePLSQLObjCmd (ClientData clientData, Tcl_Interp *interp,
     }
 
     connection = dbh->connection;
+    connection->interp = interp;
     query = Tcl_GetString(objv[3]);
 
     oci_status = OCIHandleAlloc(connection->env,
@@ -356,7 +340,6 @@ OraclePLSQLObjCmd (ClientData clientData, Tcl_Interp *interp,
 
         value = Tcl_GetVar(interp, var_p->string, 0);
         fetchbuf->name = var_p->string;;
-        fetchbuf->interp = interp;
 
         if ( (value == NULL) && 
              (strcmp(var_p->string, ref) != 0) ) {
@@ -556,8 +539,8 @@ OracleExecPLSQLObjCmd (ClientData clientData, Tcl_Interp *interp,
 {
     OCIBind           *bind;
     ora_connection_t  *connection;
-    char              *query, *buf;
     oci_status_t       oci_status;
+    char              *query, *buf;
       
     if (objc != 4) {
         Tcl_WrongNumArgs(interp, 2, objv, 
@@ -1228,7 +1211,7 @@ OracleSelectObjCmd (ClientData clientData, Tcl_Interp *interp,
                                 connection->stmt,
                                 connection->err,
                                 iters, 0, NULL, NULL, 
-                                array_p ? OCI_BATCH_ERRORS : OCI_DEFAULT);
+                                OCI_DEFAULT);
             
     string_list_free_list(bind_variables);
     if (connection->n_columns > 0) {
@@ -3689,8 +3672,8 @@ Ns_OracleGetRow (Ns_DbHandle *dbh, Ns_Set *row)
 static int 
 Ns_OracleFlush (Ns_DbHandle *dbh)
 {
-    oci_status_t oci_status;
     ora_connection_t *connection;
+    oci_status_t      oci_status;
     int i;
 
     log(lexpos(), "entry (dbh %p, row %p)", dbh, 0);
@@ -3714,6 +3697,8 @@ Ns_OracleFlush (Ns_DbHandle *dbh)
 
         connection->stmt = 0;
     }
+
+    connection->interp = NULL;
 
     if (connection->fetch_buffers != 0) {
         for (i = 0; i < connection->n_columns; i++) {

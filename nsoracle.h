@@ -78,6 +78,7 @@ struct fetch_buffer {
     struct ora_connection *connection;
 
     /* Oracle will tell us what type this column is */
+    OCIStmt   *stmt;
     OCITypeCode type;
 
     /* will be NULL unless this column happens to be one of the LOB types */
@@ -100,9 +101,6 @@ struct fetch_buffer {
     /* here's where the actual value from a particular row is kept */
     char *buf;
     char *name;
-    Tcl_Interp *interp;
-
-    OCIStmt   *stmt;
 
     /* support for array DML: the array of values for this bind variable. */
     int array_count;
@@ -138,28 +136,26 @@ typedef struct fetch_buffer fetch_buffer_t;
 */
 
 struct ora_connection {
-    /* which AOLserver handle we're associated with */
     Ns_DbHandle *dbh;
+    Tcl_Interp *interp;
 
-    /* oracle handles; last the lifetime of open Oracle connection */
-    OCIEnv *env;
-    OCIError *err;
-    OCIServer *srv;
-    OCISvcCtx *svc;
+    OCIEnv     *env;
+    OCIError   *err;
+    OCIServer  *srv;
+    OCISvcCtx  *svc;
     OCISession *auth;
+    OCIStmt    *stmt;
 
-    /* last the lifetime of query; this is the statement we're executing */
-    OCIStmt *stmt;
-
-    /* the default is autocommit; we keep track of when a connection 
-       has been kicked into transaction mode.  This was to make Oracle
-       look more like ANSI databases such as Illustra */
+    /* The default is autocommit; we keep track of when a connection 
+     * has been kicked into transaction mode.  This was to make Oracle
+     * look more like ANSI databases such as Illustra.
+     */
     enum {
         autocommit,
         transaction
     } mode;
 
-    /* fetch buffers; these change per query */
+    /* Fetch buffers; these change per query */
     sb4 n_columns;
     fetch_buffer_t *fetch_buffers;
 };
