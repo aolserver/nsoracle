@@ -253,21 +253,20 @@ void OracleDescribeSynonym (OCIDescribe *descHandlePtr, OCIParam *paramHandlePtr
 void OracleDescribePackage (OCIDescribe *descHandlePtr, OCIParam *paramHandlePtr, ora_connection_t *connection, Ns_DbHandle *dbh, char *package, Tcl_Interp *interp );
 void OracleDescribeArguments (OCIDescribe *descHandlePtr, OCIParam *paramHandlePtr, ora_connection_t *connection, Ns_DbHandle *dbh, Tcl_Interp *interp, Tcl_Obj *list);
 
-/* config parameter control */
-
-static int debug_p = NS_FALSE;  /* should we print the verbose log messages? */
+/* Config parameter control */
+static int debug_p = NS_FALSE;  
 static int max_string_log_length = 0;
-
 static int lob_buffer_size = 16384;
+static int char_expansion;
 
-/* prefetch parameters, if zero leave defaults*/
+/* Prefetch parameters, if zero leave defaults*/
 static ub4 prefetch_rows = 0;
 static ub4 prefetch_memory = 0;
 
-/* default values for the configuration parameters */
-
+/* Default values for the configuration parameters */
 #define DEFAULT_DEBUG  			NS_FALSE
 #define DEFAULT_MAX_STRING_LOG_LENGTH	1024
+#define DEFAULT_CHAR_EXPANSION          1
 
 static Ns_DbProc ora_procs[] = {
     {DbFn_Name,         (void *) ora_name},
@@ -640,11 +639,16 @@ tcl_error_p(char *file, int line, char *fn,
                                       &errorcode,
                                       errorbuf,
                                       sizeof errorbuf, OCI_HTYPE_ERROR);
-            if (oci_status1)
-                snprintf(msgbuf, STACK_BUFFER_SIZE,
-                         "`OCIErrorGet ()' error");
-            else
+
+            if (errorcode == 1405) {
+                return 0;
+            }
+
+            if (oci_status1) {
+                snprintf(msgbuf, STACK_BUFFER_SIZE, "`OCIErrorGet ()' error");
+            } else {
                 snprintf(msgbuf, STACK_BUFFER_SIZE, "%s", errorbuf);
+            }
 
             oci_status1 = OCIAttrGet(connection->stmt,
                                      OCI_HTYPE_STMT,
@@ -1092,6 +1096,12 @@ static int flush_handle(Ns_DbHandle * dbh)
     }
 
     connection = dbh->connection;
+
+    if (connection == 0) {
+        /* Connection is closed.  That's as good as flushed to me */
+        return NS_OK;
+    }
+    
     if (connection->stmt != 0) {
         oci_status = OCIHandleFree(connection->stmt, OCI_HTYPE_STMT);
         if (oci_error_p(lexpos(), dbh, "OCIHandleFree", 0, oci_status))
@@ -4185,6 +4195,9 @@ NS_EXPORT int Ns_DbDriverInit(char *hdriver, char *config_path)
     if (max_string_log_length < 0)
         max_string_log_length = INT_MAX;
 
+    if (!Ns_ConfigGetInt (config_path, "CharExpansion", &char_expansion))
+         char_expansion = DEFAULT_CHAR_EXPANSION;
+
     if (!Ns_ConfigGetInt(config_path, "LobBufferSize", &lob_buffer_size))
         lob_buffer_size = 16384;
     Ns_Log(Notice, "%s driver LobBufferSize = %d", hdriver, lob_buffer_size);
@@ -4260,6 +4273,20 @@ static int ora_open_db(Ns_DbHandle * dbh)
 
     if (!dbh) {
         error(lexpos(), "invalid args.");
+        return NS_ERROR;
+    }
+
+    if (! dbh->password) {
+        error (lexpos (), 
+                "Missing Password parameter in configuration file for pool %s.", 
+                dbh->poolname );
+        return NS_ERROR;
+    }
+
+    if (! dbh->user) {
+        error (lexpos (), 
+                "Missing User parameter in configuration file for pool %s.", 
+                dbh->poolname);
         return NS_ERROR;
     }
 
@@ -4756,6 +4783,16 @@ static Ns_Set *ora_bindrow(Ns_DbHandle * dbh)
                termination) */
             fetchbuf->buf_size = fetchbuf->size + 8;
             fetchbuf->buf = Ns_Malloc(fetchbuf->buf_size);
+
+            if (fetchbuf->type == SQLT_BIN) {
+                fetchbuf->buf_size = fetchbuf->size * 2 + 8;
+            } else {
+                fetchbuf->buf_size = fetchbuf->size + 8;
+            }
+
+            fetchbuf->buf_size *= char_expansion;
+            fetchbuf->buf = Ns_Malloc (fetchbuf->buf_size);
+
             break;
         }
     }
