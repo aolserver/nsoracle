@@ -2111,19 +2111,19 @@ OracleObjCommand (ClientData clientData, Tcl_Interp *interp,
         return TCL_ERROR;
     }
 
-    flush_handle(dbh);
-    
     switch (subcmd) {
         case CPLSQL:
         case CExecPLSQL:
         case CExecPLSQLBind:
 
+            flush_handle(dbh);
             return OraclePLSQLObjCommand(clientData, interp, 
                     objc, objv, dbh); 
             break;
 
         case CDesc:
 
+            flush_handle(dbh);
             return OracleDescObjCommand(clientData, interp, 
                     objc, objv, dbh);
             break;
@@ -2134,12 +2134,14 @@ OracleObjCommand (ClientData clientData, Tcl_Interp *interp,
         case C1Row:
         case C0or1Row:
 
+            flush_handle(dbh);
             return OracleSelectObjCommand(clientData, interp, 
                     objc, objv, dbh);
             break;
 
         case CGetCols:
 
+            flush_handle(dbh);
             return OracleGetColsObjCommand(clientData, interp, 
                     objc, objv, dbh);
             break;
@@ -2155,6 +2157,7 @@ OracleObjCommand (ClientData clientData, Tcl_Interp *interp,
         case CBlobDML:
         case CBlobDMLFile:
 
+            flush_handle(dbh);
             return OracleLobDMLObjCommand(clientData, interp,
                     objc, objv, dbh);
             break;
@@ -2164,6 +2167,7 @@ OracleObjCommand (ClientData clientData, Tcl_Interp *interp,
         case CBlobDMLBind:
         case CBlobDMLFileBind:
 
+            flush_handle(dbh);
             return OracleLobDMLBindObjCommand(clientData, interp,
                     objc, objv, dbh);
             break;
@@ -2173,6 +2177,7 @@ OracleObjCommand (ClientData clientData, Tcl_Interp *interp,
         case CWriteClob:
         case CWriteBlob:
 
+            flush_handle(dbh);
             return OracleLobSelectObjCommand(clientData, interp,
                     objc, objv, dbh);
             break;
