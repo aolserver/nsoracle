@@ -20,12 +20,24 @@
          http://www.arsdigita.com/free-tools/oracle-driver.html
 
    Config paramters in [ns/db/driver/drivername]:
-    debug    : boolean (Defaults to off)
-               Enable the "log" call so that lots of stuff gets
-               sent to the server.log.
-    maxStringLogLength : integer (defaults to 1024).  -1 implies unlimited
-                         how much character data to log before just 
-                         saying [too long]
+
+    Debug
+	boolean (Defaults to off)
+        Enable the "log" call so that lots of stuff gets
+        sent to the server.log.
+
+    MaxStringLogLength
+	integer (defaults to 1024).  -1 implies unlimited
+        how much character data to log before just 
+        saying [too long]
+
+    CharExpansion
+	integer defaulting to 1.
+	factor by which byte representation of character
+	strings can expand when fetched from the database.
+	Should only be necessary to set this if your Oracle
+	is not using UTF-8, in which case a value of 2 should
+	work for any ISO-8859 character set.
    
    ns_ora clob_dml SQL is logged when verbose=on in the pool's configuration
    section.
@@ -335,6 +347,7 @@ static int stream_read_lob (Tcl_Interp *interp, Ns_DbHandle *dbh, int rowind,
 
 static int debug_p = NS_FALSE;  /* should we print the verbose log messages? */
 static int max_string_log_length = 0;
+static int char_expansion;
 
 static int lob_buffer_size = 16384;
 
@@ -346,6 +359,7 @@ static ub4 prefetch_memory = 0;
 
 #define DEFAULT_DEBUG  			NS_FALSE
 #define DEFAULT_MAX_STRING_LOG_LENGTH	1024
+#define DEFAULT_CHAR_EXPANSION          1
 
 
 
@@ -917,6 +931,9 @@ Ns_DbDriverInit (char *hdriver, char *config_path)
 
   if (max_string_log_length < 0) 
     max_string_log_length = INT_MAX;
+
+  if (!Ns_ConfigGetInt (config_path, "CharExpansion", &char_expansion))
+    char_expansion = DEFAULT_CHAR_EXPANSION;
 
   if (!Ns_ConfigGetInt (config_path, "LobBufferSize", &lob_buffer_size))
     lob_buffer_size = 16384;
@@ -1876,10 +1893,15 @@ ora_bindrow (Ns_DbHandle *dbh)
           
 	  log (lexpos (), "column `%s' size `%d'", name, fetchbuf->size);
 	  
-	  /* this is the important part, we allocate buf to be 8 bytes
-             more than Oracle says are necessary (for null
-             termination) */
-          fetchbuf->buf_size = fetchbuf->size + 8;
+	  /* This is the important part, we allocate buf to be 8 bytes
+             more than Oracle says are necessary (for null termination).
+	     In the case of a RAW column we need 2x the column size
+	     because the value will be returned in hex.  */
+	  if (fetchbuf->type == SQLT_BIN)
+            fetchbuf->buf_size = fetchbuf->size * 2 + 8;
+	  else
+            fetchbuf->buf_size = fetchbuf->size + 8;
+	  fetchbuf->buf_size *= char_expansion;
           fetchbuf->buf = Ns_Malloc (fetchbuf->buf_size);
 	  break;
         }

@@ -1,9 +1,11 @@
 2002-10-03    <scott@scottg.net>
 
-	* all: Applied nsora 2.5.
+	* all: Applied nsora 2.6. Tagged as v2_6.
+
+	* all: Applied nsora 2.5. Tagged as v2_5.
 
 	* all: Applied nsora 2.4 and committed.
 
 	* ChangeLog: Added. This initial import is from nsora 2.3. The
-	module's name is nsoracle.
+	module's name is nsoracle. Tagged as v2_3.
 

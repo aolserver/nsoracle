@@ -138,3 +138,9 @@ What's New:
           to improve throughput on nonlocal oracle connections.
         (by davis@arsdigita.com)
 
+2.6:
+	Fix buffer size for RAW columns.  Thanks Mike Linksvayer
+	<ml@gondwanaland.com>.
+	Added CharExpansion parameter.  Thanks Tomasz Kosiak
+	<tkosiak@arena.pl>.
+

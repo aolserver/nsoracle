@@ -612,6 +612,16 @@ LOBBufferSize=200000</pre></blockquote>
 Assuming you loaded the driver using the name "ora8", this makes the
 driver will use a buffer size of 200000 bytes.
 
+<p>
+
+If you encounter error ORA-01406, "fetched column value was truncated",
+you need to use the CharExpansion parameter:
+
+<blockquote><pre>[ns/db/driver/ora8]
+CharExpansion=2</pre></blockquote>
+
+This will make the driver allocate twice as much space for char and
+varchar columns.
 
 <a name="Oracle8i">
 <h3>HPUX11 and Oracle 8.1.5</h3>
@@ -753,6 +763,29 @@ computation result, e.g., when getting avg(some_integer_column)
 	    work around mysterious ORA-24812 bug.  Set parameter
 	    LobBufferSize in ns/db/driver/ora to the desired buffer
 	    size.
+    </ul>
+
+<p> <li> 2.5: Release 2001-01-17
+    <ul>
+        <li> Fix spurious frees in exec_plsql_bind when there were
+          undefined bind varaibles.
+        <li> Fix frees lob_dml_bind_cmd which should have freed lob_argv
+          rather than argv.
+        <li> Fix free of fetchbuf->array_values (should use Tcl_Free when 
+          allocation is by Tcl_SplitList).
+        <li> Added support for oracle LONGs of greater than 1024 bytes.
+        <li> Added support for setting prefetchrows and prefetchmemory
+          to improve throughput on nonlocal oracle connections.  To use
+          set parameter PrefetchMemory (in bytes) and/or PrefetchRows in 
+          ns/db/driver/ora.
+    </ul> 
+
+<p> <li> 2.6: Release TBA
+    <ul>
+	<li> Fix buffer size for RAW columns.  Thanks Mike Linksvayer
+	&lt;ml@gondwanaland.com&gt;.
+	<li> Added CharExpansion parameter.  Thanks Tomasz Kosiak
+	&lt;tkosiak@arena.pl&gt;.
     </ul>
 
 </ul>
