@@ -4,11 +4,22 @@ nsoracle 2.8 release:
     - Migrate code to Tcl_Objs.
     - Integrate PL/SQL wrapper support.
     - Replace exec_plsql and exec_plsql_bind with new plsql command.
+    - Replace blob_*|clob_* commands with clob|blob command with options.
+
+      I think this change might facilitate a cleaner code base, if not then
+      its not really necessary because it will break the API.
+
+      Example:
+
+      ns_ora dml <db> -clobfile <files> <sql>
+      ns_ora dml <db> -clob ?<lobs>? <sql> ?clob_value? ...
+
     - Remove array_dml command in favor of -arraydml option to dml command.
     - Update documentation, possibly use DocBook.
     - Improve handling of options (just -bind right now).
     - Split OracleSelectObjCommand out. Currently its arraydml, dml, select,
       0or1row, and 1row.
+    - Update test framework.
 
 nsoracle 3.0 release:
     - Add batch error processing to array dml.

@@ -1,4 +1,16 @@
-2004-01-09  Jeremy Collins <jeremy.collins@tclsource.org>
+2004-02-11  Jeremy Collins <jeremy.collins@tclsource.org>
+
+    * nsoracle.c: Removed duplicate flush_handle code.  Moved
+    some pre-AOLserver 3.x code into #ifdef with rest of pre-AS 3.x
+    code.
+
+    Cleaned up code to conform to AOLserver engineering standards.
+
+    * nsoracle.h: Added.  
+
+    * version.h: Removed.  Define was moved to nsoracle.h.
+
+2004-02-09  Jeremy Collins <jeremy.collins@tclsource.org>
 
     * nsoracle.c: Lots of code cleanup.  Split out subcommands into
     separate functions.  Now uses Tcl 8.x Tcl_Objs.
@@ -12,11 +24,11 @@
 
     * doc/plsql.txt:  First cut of PL/SQL documentation from Lee Teague.
 
-2004-01-09  Scott S. Goodwin  <scott@scottg.net>
+2004-02-09  Scott S. Goodwin  <scott@scottg.net>
 
     * Release: nsoracle 2.7
 
-2004-01-08  Jeremy Collins <jeremy.collins@tclsource.org>
+2004-02-08  Jeremy Collins <jeremy.collins@tclsource.org>
 
     * Makefile: Added LDFLAGS, and LIBS variables back to
     link line so that the driver will compile on Mac OS X.
@@ -29,7 +41,7 @@
     old links and updated config section to use AS 3.x/4.x style
     config.
 
-2004-01-06  Scott S. Goodwin  <scott@scottg.net>
+2004-02-06  Scott S. Goodwin  <scott@scottg.net>
 
     * version.h: changed version string from ORA8_DRIVER_VERSION to
     NSORACLE_VERSION and incremented from 2.6 to 2.7.

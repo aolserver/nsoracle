@@ -1,3 +1,0 @@
-#ifndef NSORACLE_VERSION
-#define NSORACLE_VERSION "2.7"
-#endif
