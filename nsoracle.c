@@ -23,6 +23,24 @@ static ub4 rl = 0;
  * [ns_ora] implementation.
  */
 
+/*{{{ Ns_OracleMalloc */
+dvoid *Ns_OracleMalloc(dvoid *cxt, size_t size) {
+    return Ns_Malloc(size);
+}
+/*}}}*/
+
+/*{{{ Ns_OracleRealloc */
+dvoid *Ns_OracleRealloc(dvoid *cxt, dvoid *buf, size_t size) {
+    return Ns_Realloc(buf, size);
+}
+/*}}}*/
+
+/*{{{ Ns_OracleFree */
+void Ns_OracleFree(dvoid *cxt, dvoid *buf) {
+    return Ns_Free(buf);
+}
+/*}}}*/
+
 /*{{{ DynamicBindIn 
  *----------------------------------------------------------------------
  * DynamicBindIn --
@@ -41,7 +59,7 @@ DynamicBindIn(dvoid * ictxp,
 {
     fetch_buffer_t   *fbPtr = (fetch_buffer_t *) ictxp;
     ora_connection_t *connection = fbPtr->connection;;
-    char             *value;
+    char             *value = NULL;
 
     if(fbPtr->name != NULL) {
         value = Tcl_GetVar(connection->interp, fbPtr->name, 0);
@@ -2883,10 +2901,25 @@ Ns_OracleOpenDb (Ns_DbHandle *dbh)
      */
     dbh->connection = connection;
 
+    /*
+    oci_status = OCIInitialize(OCI_THREADED|OCI_SHARED, 
+                               NULL,
+                               Ns_OracleMalloc, 
+                               Ns_OracleRealloc,
+                               Ns_OracleFree);
+    */
+
     /* environment; sets connection->env */
     /* we ask for DEFAULT rather than NO_MUTEX because 
        we're in a multi-threaded environment */
-    oci_status = OCIEnvInit(&connection->env, OCI_DEFAULT, 0, NULL);
+    //oci_status = OCIEnvInit(&connection->env, OCI_DEFAULT, 0, NULL);
+    oci_status = OCIEnvCreate(&connection->env,
+                              OCI_THREADED,
+                              NULL,
+                              Ns_OracleMalloc,
+                              Ns_OracleRealloc,
+                              Ns_OracleFree,
+                              0, 0);
     if (oci_error_p(lexpos(), dbh, "OCIEnvInit", 0, oci_status))
         return NS_ERROR;
 
@@ -3785,9 +3818,8 @@ Ns_OracleFlush (Ns_DbHandle *dbh)
         oci_status = OCIHandleFree(connection->stmt, OCI_HTYPE_STMT);
         if (oci_error_p(lexpos(), dbh, "OCIHandleFree", 0, oci_status))
             return NS_ERROR;
-
         connection->stmt = 0;
-    }
+    } 
 
     connection->interp = NULL;
 

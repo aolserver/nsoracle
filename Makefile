@@ -68,7 +68,7 @@ endif
 include $(NSHOME)/include/Makefile.global
 
 # Tack on the oracle includes after Makefile.global stomps CFLAGS
-CFLAGS := -g \
+CFLAGS := \
     -I$(ORACLE_HOME)/rdbms/demo \
     -I$(ORACLE_HOME)/rdbms/public \
     -I$(ORACLE_HOME)/network/public \
