@@ -2043,9 +2043,8 @@ OracleGetColsObjCmd (ClientData clientData, Tcl_Interp *interp,
 {
     ora_connection_t  *connection;
     oci_status_t       oci_status;
-    Ns_Set        *row;
-    char          *query;
-    int            i;
+    char              *query;
+    int                i;
 
     if (objc < 4) {
         Tcl_AppendResult(interp, "wrong number of args: should be `",
@@ -2075,12 +2074,6 @@ OracleGetColsObjCmd (ClientData clientData, Tcl_Interp *interp,
         return TCL_ERROR;
     }
 
-    if (connection->stmt == 0) {
-        /* no active stmt */
-        Tcl_AppendResult(interp, "no active statement", NULL);
-        return TCL_ERROR;
-    }
-
     /* Execute Query in DESCRIBE_ONLY mode. */
     oci_status = OCIStmtExecute(connection->svc,
                                 connection->stmt,
@@ -2094,11 +2087,10 @@ OracleGetColsObjCmd (ClientData clientData, Tcl_Interp *interp,
     /* Get total number of columns. */
     oci_status = OCIAttrGet(connection->stmt,
                             OCI_HTYPE_STMT,
-                            (oci_attribute_t *) & connection->
-                            n_columns, NULL, OCI_ATTR_PARAM_COUNT,
+                            (oci_attribute_t *) & connection->n_columns, 
+                            NULL, OCI_ATTR_PARAM_COUNT,
                             connection->err);
 
-    row = Ns_SetCreate("");
     for (i = 0; i < connection->n_columns; i++) {
         OCIParam *param;
         char name[512];
@@ -2125,24 +2117,17 @@ OracleGetColsObjCmd (ClientData clientData, Tcl_Interp *interp,
         }
 
         /* Oracle gives us back a pointer to a string that is not null-terminated
-           so we copy it into our local var and add a 0 at the end */
+         * so we copy it into our local var and add a 0 at the end.
+         */
+
         memcpy(name, name1, name1_size);
         name[name1_size] = 0;
-
-        /* we downcase the column name for backward-compatibility with philg's
-           AOLserver Tcl scripts written for the case-sensitive Illustra
-           RDBMS.  philg was lucky in that he always used lowercase.  You might want
-           to change this to leave everything all-uppercase if you're a traditional
-           Oracle shop */
         downcase(name);
 
-        log(lexpos(), "name %d `%s'", name1_size, name);
-
-        Tcl_AppendResult(interp, name, " ", NULL);
+        Tcl_ListObjAppendElement(interp, 
+                Tcl_GetObjResult(interp), Tcl_NewStringObj(name, -1));
 
     }
-
-    Ns_OracleFlush(dbh);
 
     return TCL_OK;
 }
