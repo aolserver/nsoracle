@@ -1,6 +1,6 @@
 # $Id$
 
-This directory contains release 2.3 of an Oracle 8i driver
+This directory contains release 2.4 of an Oracle 8i driver
 for AOLserver. For info, or the lastest version, see
 http://www.arsdigita.com/.
 
@@ -119,4 +119,9 @@ What's New:
 	New Makefile based on AOLserver 3 Makefiles.
 	Beginnings of a code reorganization.
 	Eliminated a tiny memory leak in the [bc]lob_dml* commands.
+
+2.4:
+	Make LOB buffer size a configuration parameter so we can work
+	around mysterious ORA-24812 bug. Set parameter LobBufferSize in
+	ns/db/driver/ora to the desired buffer size.
 

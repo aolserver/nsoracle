@@ -65,11 +65,6 @@ static char *ora_driver_name = "Oracle8";
 
 /* other tweakable parameters */
 
-/* how large of a buffer to use when reading files from the file
-   system before stuffing them into LOBs
- */
-#define LOB_FILE_BUFFER_SIZE (16 * 1024)
-
 /* how big of a buffer to use for printing error messages
   (this is no longer on the stack)
  */
@@ -339,6 +334,8 @@ static int stream_read_lob (Tcl_Interp *interp, Ns_DbHandle *dbh, int rowind,
 
 static int debug_p = NS_FALSE;  /* should we print the verbose log messages? */
 static int max_string_log_length = 0;
+
+static int lob_buffer_size = 16384;
 
 /* default values for the configuration parameters */
 
@@ -915,6 +912,10 @@ Ns_DbDriverInit (char *hdriver, char *config_path)
 
   if (max_string_log_length < 0) 
     max_string_log_length = INT_MAX;
+
+  if (!Ns_ConfigGetInt (config_path, "LobBufferSize", &lob_buffer_size))
+    lob_buffer_size = 16384;
+  Ns_Log (Notice, "%s driver LobBufferSize = %d", hdriver, lob_buffer_size);
 
   log (lexpos (), "entry (hdriver %p, config_path %s)", hdriver, nilp (config_path));
   
@@ -2108,7 +2109,7 @@ ora_get_row (Ns_DbHandle *dbh, Ns_Set *row)
                 }
 	    
 	      /* Initialize the buffer we're going to use for the value. */
-              bufp =(ub1 *)Ns_Malloc(LOB_FILE_BUFFER_SIZE);
+              bufp =(ub1 *)Ns_Malloc(lob_buffer_size);
 	      Ns_DStringInit(&retval);
 
 	      /* Do the read. */
@@ -2118,7 +2119,7 @@ ora_get_row (Ns_DbHandle *dbh, Ns_Set *row)
 				       &lob_length,
 				       (ub4) 1,
 				       bufp,
-				       LOB_FILE_BUFFER_SIZE,
+				       lob_buffer_size,
 				       &retval,
 				       (OCICallbackLobRead) ora_append_buf_to_dstring,
 				       (ub2) 0,
@@ -3969,12 +3970,12 @@ stream_read_lob (Tcl_Interp *interp, Ns_DbHandle *dbh, int rowind,
 
   log (lexpos(), "before stream write, lob length is %d", (int)loblen);
 
-  if (filelen > LOB_FILE_BUFFER_SIZE)
-    nbytes = LOB_FILE_BUFFER_SIZE;
+  if (filelen > lob_buffer_size)
+    nbytes = lob_buffer_size;
   else
     nbytes = filelen;
 
-  bufp = (ub1 *)Ns_Malloc(LOB_FILE_BUFFER_SIZE);
+  bufp = (ub1 *)Ns_Malloc(lob_buffer_size);
   readlen = read (fd, bufp, nbytes);
 
   if (readlen < 0)
@@ -4019,7 +4020,7 @@ stream_read_lob (Tcl_Interp *interp, Ns_DbHandle *dbh, int rowind,
 				&amtp,
 				offset,
 				bufp,
-				LOB_FILE_BUFFER_SIZE,
+				lob_buffer_size,
 				OCI_FIRST_PIECE,
 				0, 
 				0,
@@ -4037,8 +4038,8 @@ stream_read_lob (Tcl_Interp *interp, Ns_DbHandle *dbh, int rowind,
       
       do
         {
-	  if (remainder > LOB_FILE_BUFFER_SIZE)
-	    nbytes = LOB_FILE_BUFFER_SIZE;
+	  if (remainder > lob_buffer_size)
+	    nbytes = lob_buffer_size;
 	  else
 	    {
 	      nbytes = remainder;
@@ -4208,8 +4209,8 @@ stream_write_lob (Tcl_Interp *interp, Ns_DbHandle *dbh, int rowind,
 
   log (lexpos(), "loblen %d", loblen);
 
-  bufp = (ub1 *)Ns_Malloc(LOB_FILE_BUFFER_SIZE);
-  memset((void *)bufp, (int)'\0', (size_t)LOB_FILE_BUFFER_SIZE);
+  bufp = (ub1 *)Ns_Malloc(lob_buffer_size);
+  memset((void *)bufp, (int)'\0', (size_t)lob_buffer_size);
   
   oci_status = OCILobRead (svchp, 
 		       errhp, 
@@ -4217,7 +4218,7 @@ stream_write_lob (Tcl_Interp *interp, Ns_DbHandle *dbh, int rowind,
 		       &amtp, 
 		       offset, 
 		       bufp,
-		       (loblen < LOB_FILE_BUFFER_SIZE ? loblen : LOB_FILE_BUFFER_SIZE), 
+		       (loblen < lob_buffer_size ? loblen : lob_buffer_size), 
 		       0, 
 		       0,
 		       0,
@@ -4263,9 +4264,9 @@ stream_write_lob (Tcl_Interp *interp, Ns_DbHandle *dbh, int rowind,
 
       remainder = loblen;
                                           /* a full buffer to write */
-      bytes_written = stream_actually_write (fd, conn, bufp,LOB_FILE_BUFFER_SIZE, to_conn_p);
+      bytes_written = stream_actually_write (fd, conn, bufp,lob_buffer_size, to_conn_p);
 
-      if (bytes_written != LOB_FILE_BUFFER_SIZE) 
+      if (bytes_written != lob_buffer_size) 
         {
           if (errno == EPIPE) 
             { 
@@ -4283,7 +4284,7 @@ stream_write_lob (Tcl_Interp *interp, Ns_DbHandle *dbh, int rowind,
 	  else 
 	    {
 	      Ns_Log (Error, "%s:%d:%s error writing %s.  incomplete write of %d out of %d",
-		      lexpos(), path, bytes_written, LOB_FILE_BUFFER_SIZE);
+		      lexpos(), path, bytes_written, lob_buffer_size);
 	      Tcl_AppendResult (interp, "can't write ", path,
 				" received error ", strerror(errno), NULL);
 	      goto bailout;
@@ -4292,10 +4293,10 @@ stream_write_lob (Tcl_Interp *interp, Ns_DbHandle *dbh, int rowind,
 
       do
         {
-	  memset(bufp, '\0', LOB_FILE_BUFFER_SIZE);
+	  memset(bufp, '\0', lob_buffer_size);
 	  amtp = 0;
 	  
-	  remainder -= LOB_FILE_BUFFER_SIZE;
+	  remainder -= lob_buffer_size;
 	  
 	  oci_status = OCILobRead (svchp,
 				   errhp,
@@ -4303,7 +4304,7 @@ stream_write_lob (Tcl_Interp *interp, Ns_DbHandle *dbh, int rowind,
 				   &amtp,
 				   offset,
 				   bufp,
-				   LOB_FILE_BUFFER_SIZE, 
+				   lob_buffer_size, 
 				   0, 
 				   0,
 				   0, 
@@ -4319,13 +4320,13 @@ stream_write_lob (Tcl_Interp *interp, Ns_DbHandle *dbh, int rowind,
 	  log (lexpos(), "stream read %d'th piece, atmp = %d",
 	       (int)(++piece), (int)amtp);
 	  
-	  if (remainder < LOB_FILE_BUFFER_SIZE)
+	  if (remainder < lob_buffer_size)
 	    {  /* last piece not a full buffer piece */
 		bytes_to_write = remainder;
 	    }
 	  else 
 	    {
-		bytes_to_write = LOB_FILE_BUFFER_SIZE;
+		bytes_to_write = lob_buffer_size;
 	    }
 
 	  bytes_written = stream_actually_write (fd, conn, bufp, bytes_to_write, to_conn_p);

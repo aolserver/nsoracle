@@ -1,0 +1,7 @@
+2002-10-03    <scott@scottg.net>
+
+	* all: Applied nsora 2.4 and committed.
+
+	* ChangeLog: Added. This initial import is from nsora 2.3. The
+	module's name is nsoracle.
+

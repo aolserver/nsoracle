@@ -6,16 +6,14 @@
 #      Makefile for ora8 database driver.
 #
 
-# Driver version.
-VERSION = 2.3
+ifdef INST
+NSHOME ?= $(INST)
+else
+NSHOME ?= ../aolserver
+endif
 
-#
-# AOLserver's location
-#
-#  Assuming that the oracle-driver directory was placed next to the
-#  AOLserver directory.
-#
-NSHOME   =  ../aolserver
+# Driver version.
+VERSION = 2.4
 
 #
 # Module name

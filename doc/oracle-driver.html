@@ -13,7 +13,7 @@ part of the <a href="/services.html">ArsDigita services section</a>
 
 <p>
 
-This page was last updated on 2000-09-11.
+This page was last updated on 2000-10-12.
 
 <hr>
 
@@ -598,6 +598,20 @@ href="http://photo.net/bboard/q-and-a-fetch-msg.tcl?msg_id=000SNv">
 this thread</a> on photo.net.  We don't use this configuration
 ourselves so we haven't tested it.
 
+<p>
+
+We have encountered error ORA-24812 when reading CLOBs containing UTF-8
+data from the database.  Increasing the chunk size that the driver uses to
+read the LOBs helps avoid the problem.  The default size is 16K.  You
+can set the size in bytes of the LOB buffer by adding something like
+this to your config file:
+
+<blockquote><pre>[ns/db/driver/ora8]
+LOBBufferSize=200000</pre></blockquote>
+
+Assuming you loaded the driver using the name "ora8", this makes the
+driver will use a buffer size of 200000 bytes.
+
 
 <a name="Oracle8i">
 <h3>HPUX11 and Oracle 8.1.5</h3>
@@ -625,7 +639,6 @@ with Oracle 8.1.5 and AOLserver 2.3.3 for
 HPUX11. Place the files in the bin directory into your AOLserver's bin
 directory and read the README.txt file for instructions on how to
 use, and how to generate your own version of these files if necessary.
-
 
 <a name="Version History"><h3>Version History</h3></a>
 
@@ -732,6 +745,14 @@ computation result, e.g., when getting avg(some_integer_column)
 	<li> New Makefile based on AOLserver 3 Makefiles.
 	<li> Beginnings of a code reorganization.
 	<li> Eliminated a tiny memory leak in the [bc]lob_dml* commands.
+    </ul>
+
+<p> <li> 2.4: Release 2000-10-12
+    <ul>
+	<li> Make LOB buffer size a configuration parameter so we can
+	    work around mysterious ORA-24812 bug.  Set parameter
+	    LobBufferSize in ns/db/driver/ora to the desired buffer
+	    size.
     </ul>
 
 </ul>
