@@ -1,9 +1,9 @@
 #
 # $Header$
 #
-# ora8 --
+# nsoracle --
 #
-#      Makefile for ora8 database driver.
+#      Makefile for nsoracle database driver.
 #
 
 ifdef INST
@@ -27,14 +27,14 @@ MODNAME  =  nsoracle
 #
 # Module name
 #
-MOD      =  ora8.so
-MODCASS  =  ora8cass.so
+MOD      =  nsoracle.so
+MODCASS  =  nsoraclecass.so
 
 #
 # Objects to build
 #
-OBJS     =  ora8.o
-OBJSCASS =  ora8cass.o
+OBJS     =  nsoracle.o
+OBJSCASS =  nsoraclecass.o
 
 #
 # Header files in THIS directory
@@ -44,8 +44,16 @@ HDRS     =
 #
 # Extra libraries
 #
+ORA_VERSION=$(shell grep OCI_LOGON2 $(ORACLE_HOME)/rdbms/demo/oci.h)
+
+ifeq (,$(findstring OCI_LOGON2,$(ORA_VERSION)))
 MODLIBS  =  -L$(ORACLE_HOME)/lib \
-    -lclntsh -lcore8 -lcommon8 -lgeneric8 -lclient8
+	-lclntsh -lcore8 -lcommon8 -lgeneric8 -lclient8
+else
+MODLIBS  =  -L$(ORACLE_HOME)/lib \
+    -lclntsh -lcore9 -lcommon9 -lgeneric9 -lclient9
+endif
+
 
 ########################################################################
 # Copied from Makefile.module because this module is a little more
@@ -57,11 +65,11 @@ MODLIBS  =  -L$(ORACLE_HOME)/lib \
 include $(NSHOME)/include/Makefile.global
 
 # Tack on the oracle includes after Makefile.global stomps CFLAGS
-CFLAGS += \
+CFLAGS := \
     -I$(ORACLE_HOME)/rdbms/demo \
     -I$(ORACLE_HOME)/rdbms/public \
     -I$(ORACLE_HOME)/network/public \
-    -I$(ORACLE_HOME)/plsql/public 
+    -I$(ORACLE_HOME)/plsql/public $(filter-out -Wconversion,$(CFLAGS))
 
 all: $(MOD) $(MODCASS)
 
@@ -78,7 +86,7 @@ $(MODCASS): $(OBJSCASS)
 
 $(OBJS): $(HDRS)
 
-$(OBJSCASS): $(HDRS) ora8.c
+$(OBJSCASS): $(HDRS) nsoracle.c
 	$(CC) $(CFLAGS) -DFOR_CASSANDRACLE=1 -o $@ -c $<
 
 install: all

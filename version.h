@@ -1,3 +1,3 @@
-#ifndef ORA8_DRIVER_VERSION
-#define ORA8_DRIVER_VERSION "2.6"
+#ifndef NSORACLE_VERSION
+#define NSORACLE_VERSION "2.7"
 #endif

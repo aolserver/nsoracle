@@ -1,6 +1,33 @@
+2004-01-06  Scott S. Goodwin  <scott@scottg.net>
+
+    * version.h: changed version string from ORA8_DRIVER_VERSION to
+    NSORACLE_VERSION and incremented from 2.6 to 2.7.
+
+    * ora8.c, nsoracle.c: rename ora8.c to nsoracle.c; altered Makefile to
+    conform. This means you'll need to change your nsd.tcl file to load
+    nsoracle.so instead of ora8.so.
+
+    * ChangeLog: I've moved change notes I found in the README and the
+    doc/oracle-driver.html files to the end of this ChangeLog.
+    
+    * BUGS: added and moved bug info from README into here.
+
+    * Makefile, makefile-80: Removed makefile-80; Jeremy Collins worked the
+    Makefile to be more responsive and try to determine whether it needs to
+    compile against Oracle 8 or 9 libraries.
+
 2002-12-13  Scott S. Goodwin  <scott@scottg.net>
 
 	* Makefile: Added 'make help' and 'make tag' targets.
+
+2002-11-14   Scott S. Goodwin  <scott@scottg.net>
+
+    * Release 2.6: 
+    
+    Fix buffer size for RAW columns.  Thanks Mike Linksvayer
+    <ml@gondwanaland.com>.
+    
+    Added CharExpansion parameter. Thanks Tomasz Kosiak <tkosiak@arena.pl>.
 
 2002-10-09  Scott S. Goodwin  <scott@scottg.net>
 
@@ -27,3 +54,179 @@
 	* ChangeLog: Added. This initial import is from nsora 2.3. The
 	module's name is nsoracle. Tagged as v2_3.
 
+2001-01-17   Unknown
+
+    * Release 2.5: 
+
+    Fix spurious frees in exec_plsql_bind when there were undefined bind
+    varaibles.
+
+    Fix frees lob_dml_bind_cmd which should have freed lob_argv rather than
+    argv.
+
+    Fix free of fetchbuf->array_values (should use Tcl_Free when allocation is
+    by Tcl_SplitList).
+
+    Added support for oracle LONGs of greater than 1024 bytes.
+
+    Added support for setting prefetchrows and prefetchmemory to improve
+    throughput on nonlocal oracle connections (by davis@arsdigita.com).
+
+2000-10-12   Unknown
+
+    * Release 2.4:
+    
+    Make LOB buffer size a configuration parameter so we can work around
+    mysterious ORA-24812 bug.
+    
+    Set parameter LobBufferSize in ns/db/driver/ora to the desired buffer
+    size.
+
+2000-09-11   Unknown
+
+    * Release 2.3:
+
+	New Makefile based on AOLserver 3 Makefiles.
+
+	Beginnings of a code reorganization.
+
+	Eliminated a tiny memory leak in the [bc]lob_dml* commands.
+
+2000-07-28   Unknown
+
+    * Release 2.2:
+
+    Fixed a problem with EPIPE handling in stream_write_lob (Contributed by
+    Paul Laferriere).
+
+    Fixed a problem with handling UTF-8 data in LOBs (Contributed by Jin
+    Choi).
+
+    Added clob_dml_bind, clob_dml_file_bind, blob_dml_bind,
+    blob_dml_file_bind, exec_plsql_bind functions.
+
+2000-05-01 Unknown
+
+    * Release 2.1: 
+    
+    Plugged some potential buffer overflow situations when reporting errors.
+
+    Added bind variable support.
+
+    The error message for certain SQL errors now indicates the location in the
+    SQL of the error (contributed by H.B. Weinberg).
+
+    You can now use ns_dberrorcode to get the numeric Oracle error code after
+    an error.
+
+    We no longer put huge arrays on the stack, so you shouldn't need to turn
+    up your AOLserver stack size so much any more.
+
+    Fixed some memory-allocation problems in bind variable support (we were
+    not calling Ns_StrDup in all the right places).
+
+    Expanded bind-variable support.
+
+    Added array DML.
+
+    Fixed bug when reading partial LOBs.
+
+    Added support for building on Win32 platforms.
+
+2000-01-14   Unknown
+
+    * Release 2.0.1: Fixed linking problem on Linux and AOLserver 3 (fstat
+    wasn't being linked in with AOLserver 3, so wasn't being found when the
+    driver was loaded).
+
+2000-01-06   Unknown
+
+    * Release 2.0:
+    
+    Fixed error where *lob_get_file would leave temporary files in /var/tmp.
+
+    Optimized *lob_get_file to return directly to the connection rather than
+    spooling from the file system.
+
+    It's now easier to see what version of the driver you are running.
+
+    Perform a "strings ora8.so | grep ArsDigita" to get the version number.
+
+    Fixed ora_open_db to return a better error than "NULL Connection" if it
+    fails to connect to Oracle.
+
+    Fixed a number of errors found by Jin Choi (jsc@arsdigita.com).
+
+    Added cleanup if the oracle process dies unexpectedly (which would
+    ultimately lead to the "hostdef extension doesn't exist" error).
+
+    Added cleanup of the oracle process if a "too many oracle processes"
+    (ORA-00020) or "oracle not available" (ORA-01034) error occurs.
+
+    Added in re-implementations of some functions that were removed from
+    AOLserver 3.0 but are needed by ACS.
+
+    The oracle 8.1.X makefile is now the default makefile.  If you're still
+    using Oracle 8.0.X, you'll need to use the makefile-80: gmake -f
+    makefile-80.
+
+1999-06-11   Unknown
+
+    * Release 1.0.3: Turned OCI_SUCCESS_WITH_INFO into a non-error condition.
+    Oracle changed behavior between 8.0.X and 8.1.X, causing the use of
+    aggregate functions with NULLs to generate a warning.  Since NULLs in
+    aggregates usually aren't a problem, we recommend upgrading to this
+    version from 1.0.2
+
+1999-04-14   Unknown
+
+    * Release 1.0.2: 
+    
+    Now printing Oracle's warning messages when a result code of
+    OCI_SUCCESS_WITH_INFO is returned (which can happen in cases like having
+    NULL values in aggregate functions).
+
+    Added an experimental makefile for building against Oracle 8.1 The syntax
+    to use is gmake -f makefile-8.1.
+
+1999-04-05   Unknown
+
+    * Release 1.0.1: Fixed ns_ora clob_get_file so it won't leak open files
+    (fix donated by Igor Baikalov - thanks!).
+
+1999-03-12   Unknown
+
+    * Release 1.0:
+
+    Fixed corrupted return data for LONG columns < 1024 bytes.  LONG columns
+    over 1024 bytes are not supported.
+
+    Fixed complaint when inserting an empty string via clob_dml.  It now
+    inserts a NULL value in this case
+
+    Added clob_dml_file and clob_get_file commands
+
+    Added write_clob command
+
+    Added blob versions of all of the clob commands 
+
+    Added safety features for <a
+    href="http://arsdigita.com/free-tools/cassandracle.html">Cassandracle</a> 
+
+    Added the debug configuration parameter, so now getting trace output
+    doesn't require recompiling the driver
+
+    clob_dml SQL and the CLOB contents are now logged to the server.log when
+    verbose=on is set in the pool's configuration
+
+    Rewrote makefiles so the same makefile works on Solaris, HP-UX 11.00, and
+    Linux
+
+1999-01-13   Unknown
+
+    * Release 0.6: Comments and fix for truncation of NUMBER values error.
+
+1997-06-01   Unknown (Cotton Seed?)
+
+    * First release.
+$Header$

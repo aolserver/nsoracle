@@ -1,81 +1,21 @@
 /* $Id$ */
 
 /* An Oracle 8 internal driver for AOLServer
-   Copyright (C) 1997 Cotton Seed
 
-   documented 1998 by cottons@concmp.com, philg@mit.edu, shivers@lcs.mit.edu
-   extended 1999 by markd@arsdigita.com
-   extended 2000 by markd@arsdigita.com, curtisg@arsdigita.com, jsalz@mit.edu, 
-     jsc@arsdigita.com, mayoff@arsdigita.com
-
-   The "how-to write an AOLserver driver" docs are at
-   http://www.aolserver.com/server/docs/2.3/html/dr-app.htm
-
-   The Oracle OCI docs are in 
-   Programmer's Guide to the Oracle Call Interface
-   http://oradoc.photo.net/ora8doc/DOC/server803/A54656_01/toc.htm
-
-   The documentation for this driver (including a couple of special
-   Tcl API calls) is at 
-         http://www.arsdigita.com/free-tools/oracle-driver.html
-
-   Config paramters in [ns/db/driver/drivername]:
-
-    Debug
-	boolean (Defaults to off)
-        Enable the "log" call so that lots of stuff gets
-        sent to the server.log.
-
-    MaxStringLogLength
-	integer (defaults to 1024).  -1 implies unlimited
-        how much character data to log before just 
-        saying [too long]
-
-    CharExpansion
-	integer defaulting to 1.
-	factor by which byte representation of character
-	strings can expand when fetched from the database.
-	Should only be necessary to set this if your Oracle
-	is not using UTF-8, in which case a value of 2 should
-	work for any ISO-8859 character set.
-   
-   ns_ora clob_dml SQL is logged when verbose=on in the pool's configuration
-   section.
-
-   To make a "safe" driver (say for servers running with DBA
-   priviliges) that only allows SELECT statements, define
-   FOR_CASSANDRACLE when compiling this
-
-   Known Bugs:
-
-     The cleanup after errors after stream_write_lob is very heavy-handed,
-     and should be fixed to use a better cleanup after interrupting a multipart
-     LOB get.
-
-     LONGs greater than 1024 bytes aren't supported since we don't do
-     the piecewise fetch stuff.  Oracle's deprecating LONGs anyway, so
-     we don't want to burn the time to Do It Right.  We still want to keep
-     them around since the Data Dictionary returns some stuff as longs.
-
-     leaves behind zombie processes on HP-UX 10.xx after conn is
-     closed, due to lossage with AOLServer and the HP-UX signal
-     handling
-
-     it may be the case that the Oracle libraries are able to lock the 
-     whole server for moments and keep other AOLserver threads (even those
-     that are just serving static files and don't even have Tcl interpreters)
-     from serving; this driver never explicitly takes a lock (see
-     http://db.photo.net/dating/ for an example of Oracle + JPEG service
-     conflicting).
+   Copyright (C) 1997-1998 Cotton Seed
+   Copyright (C) 1998      Philip Greenspun, shivers@lcs.mit.edu
+   Copyright (C) 1999-2000 Mark Dalrymple
+   Copyright (C)      2000 Curtis Galloway, Rob Mayoff, Jin Choi, Jon Salz
 
 */
+
 /* Oracle 8 Call Interface */
 #include <oci.h>
 
 /* be sure to bump the version number if changes are made */
 #include "version.h"
 
-static char *ora_driver_version = "ArsDigita Oracle Driver version " ORA8_DRIVER_VERSION;
+static char *ora_driver_version = "ArsDigita Oracle Driver version " NSORACLE_VERSION;
 static char *ora_driver_name = "Oracle8";
 
 /* other tweakable parameters */

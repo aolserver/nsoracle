@@ -1,8 +1,6 @@
-# $Id$
 
-This directory contains release 2.4 of an Oracle 8i driver
-for AOLserver. For info, or the lastest version, see
-http://www.arsdigita.com/.
+This directory contains release 2.7 of an Oracle driver for AOLserver. For
+info, or the lastest version, see http://www.arsdigita.com/.
 
 It was written by Cotton Seed (cottons@lcs.mit.edu), later modifications
 by Mark Dalrymple (markd@arsdigita.com), Jin Choi (jsc@arsdigita.com),
@@ -12,6 +10,9 @@ This Oracle driver is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License, as
 published by the Free Software Foundation; either version 2, or (at your
 option) any later version.
+
+* Be sure to explicitly load the nsdb.so module when running this module under
+* AOLserver 4.x!
 
 How to Build:
 
@@ -26,121 +27,43 @@ How to Build:
 
 * Run "make" or "gmake" (whichever is GNU Make).
 
-* Run "make install" or copy "ora8.so" and "ora8cass.so" to your
-  AOLserver bin directory.  "ora8cass.so" is the Cassandracle Oracle
+* Run "make install" or copy "nsoracle.so" and "nsoraclecass.so" to your
+  AOLserver bin directory.  "nsoraclecass.so" is the Cassandracle Oracle
   driver; it only permits SELECT statements.
 
-What's New:
+NOTES:
 
-0.6: comments and fix for truncation of NUMBER values error
+   The "how-to write an AOLserver driver" docs are at
+   http://www.aolserver.com/server/docs/2.3/html/dr-app.htm
 
-1.0: Normalized makefiles for the suported platforms (Solaris, HP-UX, Linux,
-        but we haven't double-checked the Linux stuff yet)
-     Fixed corrupted return data for LONG columns < 1024 bytes
-     Fixed complaint when trying to insert an empty string via ns_ora clob_dml.         If a given value is empty, it'll be inserted as a NULL
-     LONG colums >= 1024 bytes are not supported
-     Added new configuration parameters to [ns/db/driver/drivername]:
-        debug    : boolean (Defaults to off)
-                   Enable the "log" call so that lots of stuff gets
-                   sent to the server.log.
-        maxStringLogLength : integer (defaults to 1024).  -1 implies unlimited
-                             how much character data to log before just 
-                             saying [too long]
-     Added clob_dml_file, clob_get_file, and write_clob tcl commands
-     Added BLOB versions of the ns_ora clob* commands
-     ns_ora clob_dml SQL and CLOBs are now logged when verbose=on in the 
-         pool's configuration
-     Added "Cassandracle" features to reduce the functionality of the
-         driver to only allow SELECT statements (for if you need to run an
-         AOLServer/Oracle combination when logged in as DBA
+   The Oracle OCI docs are in Programmer's Guide to the Oracle Call Interface
+   http://oradoc.photo.net/ora8doc/DOC/server803/A54656_01/toc.htm
 
-1.0.1: Fixed ns_ora clob_get_file so it won't leak open files
-         (fix donated by Igor Baikalov - thanks!)
+   The documentation for this driver (including a couple of special Tcl API
+   calls) is at http://www.arsdigita.com/free-tools/oracle-driver.html
 
-1.0.2: Now printing Oracle's warning messages when a result code of
-         OCI_SUCCESS_WITH_INFO is returned (which can happen in cases like
-         having NULL values in aggregate functions)
-       Added an experimental makefile for building against Oracle 8.1
-         The syntax to use is gmake -f makefile-8.1
+   Config paramters in [ns/db/driver/drivername]:
 
-1.0.3: Turned OCI_SUCCESS_WITH_INFO into a non-error condition.
-       Oracle changed behavior between 8.0.X and 8.1.X, causing 
-         the use of aggregate functions with NULLs to generate a warning.
-         Since NULLs in aggregates usually aren't a problem, we recommend 
-         upgrading to this version from 1.0.2
+     Debug: boolean (Defaults to off)
+        Enable the "log" call so that lots of stuff gets sent to the
+        server.log.
 
-2.0:  Fixed error where *lob_get_file would leave temporary files in /var/tmp.
-      Optimized *lob_get_file to return directly to the connection rather than
-        spooling from the file system.
-      It's now easier to see what version of the driver you are running.
-        Perform a "strings ora8.so | grep ArsDigita" to get the version number.
-      Fixed ora_open_db to return a better error than "NULL Connection" if
-        it fails to connect to Oracle.
-      Fixed a number of errors found by Jin Choi (jsc@arsdigita.com)
-      Added cleanup if the oracle process dies unexpectedly (which would
-        ultimately lead to the "hostdef extension doesn't exist" error.
-      Added cleanup of the oracle process if an "too many oracle processes"
-        (ORA-00020) or "oracle not available" (ORA-01034) error occurs.
-      Added in reimplementations of some functions that were removed from
-        AOLserver 3.0 but are needed by ACS.
-      The oracle 8.1.X makefile is now the default makefile.  If you're
-        still using Oracle 8.0.X, you'll need to use the makefile-80:
-        gmake -f makefile-80
+     MaxStringLogLength: integer (defaults to 1024); -1 implies unlimited
+        how much character data to log before just saying [too long]
 
-2.0.1: Fixed linking problem on Linux and AOLserver 3. 
-       (fstat wasn't being linked in with AOLserver 3, so wasn't being found
-       when the driver was loaded)
+     CharExpansion: integer defaulting to 1
+        Factor by which byte representation of character strings can expand
+        when fetched from the database.  Should only be necessary to set this
+        if your Oracle is not using UTF-8, in which case a value of 2 should
+        work for any ISO-8859 character set.
+   
+   ns_ora clob_dml SQL is logged when verbose=on in the pool's configuration
+   section.
 
-2.1: Plugged some potential buffer overflow situations when reporting
-        errors.
-      Added bind variable support.
-      The error message for certain SQL errors now indicates the
-        location in the SQL of the error. (contributed by H.B. Weinberg)
-      You can now use ns_dberrorcode to get the numeric Oracle
-        error code after an error.
-      We no longer put huge arrays on the stack, so you shouldn't
-        need to turn up your AOLserver stack size so much any more.
-      Fixed some memory-allocation problems in bind variable support (we were
-          not calling Ns_StrDup in all the right places).
-      Expanded bind-variable support.
-      Added array DML.
-      Fixed bug when reading partial LOBs.
-      Added support for building on Win32 platforms.
-
-2.2:
-      Fixed a problem with EPIPE handling in stream_write_lob.
-      (Contributed by Paul Laferriere.)
-      Fixed a problem with handling UTF-8 data in LOBs.
-      (Contributed by Jin Choi.)
-      Added clob_dml_bind, clob_dml_file_bind, blob_dml_bind,
-      blob_dml_file_bind, exec_plsql_bind functions.
-
-2.3:
-	New Makefile based on AOLserver 3 Makefiles.
-	Beginnings of a code reorganization.
-	Eliminated a tiny memory leak in the [bc]lob_dml* commands.
-
-2.4:
-	Make LOB buffer size a configuration parameter so we can work
-	around mysterious ORA-24812 bug. Set parameter LobBufferSize in
-	ns/db/driver/ora to the desired buffer size.
+   To make a "safe" driver (say for servers running with DBA priviliges) that
+   only allows SELECT statements, define FOR_CASSANDRACLE when compiling this
 
 
-2.5: 
-        Fix spurious frees in exec_plsql_bind when there were
-          undefined bind varaibles.
-        Fix frees lob_dml_bind_cmd which should have freed lob_argv
-          rather than argv.
-        Fix free of fetchbuf->array_values (should use Tcl_Free when 
-          allocation is by Tcl_SplitList).
-        Added support for oracle LONGs of greater than 1024 bytes.
-        Added support for setting prefetchrows and prefetchmemory
-          to improve throughput on nonlocal oracle connections.
-        (by davis@arsdigita.com)
 
-2.6:
-	Fix buffer size for RAW columns.  Thanks Mike Linksvayer
-	<ml@gondwanaland.com>.
-	Added CharExpansion parameter.  Thanks Tomasz Kosiak
-	<tkosiak@arena.pl>.
+$Header$
 
