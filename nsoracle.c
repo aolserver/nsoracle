@@ -45,6 +45,8 @@ DynamicBindIn(dvoid * ictxp,
     *alenp = strlen(value) + 1;
     *piecep = OCI_ONE_PIECE;
     *indpp = NULL;
+
+    fbPtr->inout = BIND_IN;
     
     return OCI_CONTINUE;
 }
@@ -93,7 +95,8 @@ DynamicBindOut (dvoid * ctxp, OCIBind * bindp,
         *piecep = OCI_NEXT_PIECE;
 
         fbPtr->buf_size = EXEC_PLSQL_BUFFER_SIZE + fbPtr->buf_size;
-        
+        fbPtr->inout = BIND_OUT;
+
     }
 
     return OCI_CONTINUE;
@@ -170,47 +173,40 @@ OracleObjCmd (ClientData clientData, Tcl_Interp *interp,
         case CPLSQL:
 
             Ns_OracleFlush(dbh);
-            return OraclePLSQLObjCmd(clientData, interp, 
-                    objc, objv, dbh); 
+            return OraclePLSQL(interp, objc, objv, dbh); 
 
         case CExecPLSQL:
 
             Ns_OracleFlush(dbh);
-            return OracleExecPLSQLObjCmd(clientData, interp, 
-                    objc, objv, dbh); 
+            return OracleExecPLSQL(interp, objc, objv, dbh); 
 
         case CExecPLSQLBind:
 
             Ns_OracleFlush(dbh);
-            return OracleExecPLSQLBindObjCmd(clientData, interp,
-                    objc, objv, dbh);
+            return OracleExecPLSQLBind(interp, objc, objv, dbh);
 
         case CDesc:
 
             Ns_OracleFlush(dbh);
-            return OracleDescObjCmd(clientData, interp, 
-                    objc, objv, dbh);
+            return OracleDesc(interp, objc, objv, dbh);
 
-        case CSelect:
         case CDML:
         case CArrayDML:
+        case CSelect:
         case C1Row:
         case C0or1Row:
 
             Ns_OracleFlush(dbh);
-            return OracleSelectObjCmd(clientData, interp, 
-                    objc, objv, dbh);
+            return OracleSelect(interp, objc, objv, dbh);
 
         case CGetCols:
 
             Ns_OracleFlush(dbh);
-            return OracleGetColsObjCmd(clientData, interp, 
-                    objc, objv, dbh);
+            return OracleGetCols(interp, objc, objv, dbh);
 
         case CResultRows:
 
-            return OracleResultRowsObjCmd(clientData, interp, 
-                    objc, objv, dbh);
+            return OracleResultRows(interp, objc, objv, dbh);
 
         case CClobDML:
         case CClobDMLFile:
@@ -218,8 +214,7 @@ OracleObjCmd (ClientData clientData, Tcl_Interp *interp,
         case CBlobDMLFile:
 
             Ns_OracleFlush(dbh);
-            return OracleLobDMLObjCmd(clientData, interp,
-                    objc, objv, dbh);
+            return OracleLobDML(interp, objc, objv, dbh);
 
         case CClobDMLBind:
         case CClobDMLFileBind:
@@ -227,8 +222,7 @@ OracleObjCmd (ClientData clientData, Tcl_Interp *interp,
         case CBlobDMLFileBind:
 
             Ns_OracleFlush(dbh);
-            return OracleLobDMLBindObjCmd(clientData, interp,
-                    objc, objv, dbh);
+            return OracleLobDMLBind(interp, objc, objv, dbh);
 
         case CClobGetFile:
         case CBlobGetFile:
@@ -236,8 +230,7 @@ OracleObjCmd (ClientData clientData, Tcl_Interp *interp,
         case CWriteBlob:
 
             Ns_OracleFlush(dbh);
-            return OracleLobSelectObjCmd(clientData, interp,
-                    objc, objv, dbh);
+            return OracleLobSelect(interp, objc, objv, dbh);
 
         default:
 
@@ -255,9 +248,9 @@ OracleObjCmd (ClientData clientData, Tcl_Interp *interp,
 }
 /*}}}*/
 
-/*{{{ OraclePLSQLObjCmd
+/*{{{ OraclePLSQL
  *----------------------------------------------------------------------
- * OraclePLSQLObjCmd --
+ * OraclePLSQL --
  *
  *      Implements [ns_ora plsql] command.  
  *
@@ -275,8 +268,8 @@ OracleObjCmd (ClientData clientData, Tcl_Interp *interp,
  *----------------------------------------------------------------------
  */
 int
-OraclePLSQLObjCmd (ClientData clientData, Tcl_Interp *interp, 
-        int objc, Tcl_Obj *CONST objv[], Ns_DbHandle *dbh)
+OraclePLSQL (Tcl_Interp *interp, int objc, 
+             Tcl_Obj *CONST objv[], Ns_DbHandle *dbh)
 {
     ora_connection_t  *connection;
     oci_status_t       oci_status;
@@ -490,25 +483,27 @@ OraclePLSQLObjCmd (ClientData clientData, Tcl_Interp *interp,
          var_p = var_p->next, i++) {
         fetch_buffer_t *fetchbuf = &connection->fetch_buffers[i];
         
-        switch (fetchbuf->external_type) {
+        if (fetchbuf->inout == BIND_OUT) {
+            switch (fetchbuf->external_type) {
 
-            case SQLT_STR:
-                Tcl_SetVar(interp, var_p->string, fetchbuf->buf, 0);
-                break;
+                case SQLT_STR:
+                    Tcl_SetVar(interp, var_p->string, fetchbuf->buf, 0);
+                    break;
 
-            case SQLT_RSET:
+                case SQLT_RSET:
 
-                oci_status = OCIHandleFree (connection->stmt,
-                                            OCI_HTYPE_STMT);
-                if (tcl_error_p
-                    (lexpos(), interp, dbh, "OCIStmtExecute", query, oci_status)) {
-                    Ns_OracleFlush(dbh);
-                    free_fetch_buffers(connection);
-                    return TCL_ERROR;
-                }
+                    oci_status = OCIHandleFree (connection->stmt,
+                                                OCI_HTYPE_STMT);
+                    if (tcl_error_p
+                        (lexpos(), interp, dbh, "OCIStmtExecute", query, oci_status)) {
+                        Ns_OracleFlush(dbh);
+                        free_fetch_buffers(connection);
+                        return TCL_ERROR;
+                    }
 
-                connection->stmt = fetchbuf->stmt;
-                break;
+                    connection->stmt = fetchbuf->stmt;
+                    break;
+            }
         }
     }
 
@@ -519,9 +514,9 @@ OraclePLSQLObjCmd (ClientData clientData, Tcl_Interp *interp,
 }
 /*}}}*/
 
-/*{{{ OracleExecPLSQLObjCmd
+/*{{{ OracleExecPLSQL
  *----------------------------------------------------------------------
- * OracleExecPLSQLObjCmd --
+ * OracleExecPLSQL --
  *
  *      Implements [ns_ora exec_plsql]
  *
@@ -534,8 +529,8 @@ OraclePLSQLObjCmd (ClientData clientData, Tcl_Interp *interp,
  *----------------------------------------------------------------------
  */
 int
-OracleExecPLSQLObjCmd (ClientData clientData, Tcl_Interp *interp, 
-        int objc, Tcl_Obj *CONST objv[], Ns_DbHandle *dbh)
+OracleExecPLSQL (Tcl_Interp *interp, int objc, 
+                 Tcl_Obj *CONST objv[], Ns_DbHandle *dbh)
 {
     OCIBind           *bind;
     ora_connection_t  *connection;
@@ -628,9 +623,9 @@ OracleExecPLSQLObjCmd (ClientData clientData, Tcl_Interp *interp,
 }
 /*}}}*/
 
-/*{{{ OracleExecPLSQLBindObjCmd
+/*{{{ OracleExecPLSQLBind
  *----------------------------------------------------------------------
- * OracleExecPLSQLBindObjCmd --
+ * OracleExecPLSQLBind --
  *
  *      Implements [ns_ora exec_plsql_bind]
  *
@@ -643,8 +638,8 @@ OracleExecPLSQLObjCmd (ClientData clientData, Tcl_Interp *interp,
  *----------------------------------------------------------------------
  */
 int
-OracleExecPLSQLBindObjCmd (ClientData clientData, Tcl_Interp *interp, 
-        int objc, Tcl_Obj *CONST objv[], Ns_DbHandle *dbh)
+OracleExecPLSQLBind (Tcl_Interp *interp, int objc, 
+                     Tcl_Obj *CONST objv[], Ns_DbHandle *dbh)
 {
     ora_connection_t  *connection;
     oci_status_t       oci_status;
@@ -852,9 +847,9 @@ OracleExecPLSQLBindObjCmd (ClientData clientData, Tcl_Interp *interp,
 }
 /*}}}*/
 
-/*{{{ OracleSelectObjCmd
+/*{{{ OracleSelect
  *----------------------------------------------------------------------
- * OracleSelectObjCmd --
+ * OracleSelect --
  *
  *      Implements [ns_ora select]
  *                 [ns_ora dml]
@@ -875,15 +870,15 @@ OracleExecPLSQLBindObjCmd (ClientData clientData, Tcl_Interp *interp,
  *----------------------------------------------------------------------
  */
 int
-OracleSelectObjCmd (ClientData clientData, Tcl_Interp *interp, 
-        int objc, Tcl_Obj *CONST objv[], Ns_DbHandle *dbh)
+OracleSelect (Tcl_Interp *interp, int objc, 
+              Tcl_Obj *CONST objv[], Ns_DbHandle *dbh)
 {
     ora_connection_t  *connection;
     oci_status_t       oci_status;
     string_list_elt_t *bind_variables, 
                       *var_p;
     char              *query, *command, *subcommand;
-    int                i, j;
+    int                i;
     ub4                iters;
     ub2                type;
     int                dml_p;
@@ -892,7 +887,8 @@ OracleSelectObjCmd (ClientData clientData, Tcl_Interp *interp,
     Ns_Set            *set = NULL;   /* If we're binding to an ns_set, a pointer to the struct */
 
     if (objc < 4 || (!strcmp("-bind", Tcl_GetString(objv[3])) && objc < 6)) {
-        Tcl_WrongNumArgs(interp, 2, objv, "dbhandle ?-bind set? sql ?ref?");
+        Tcl_WrongNumArgs(interp, 2, objv, 
+                "dbhandle ?-bind set? sql ?arg1 .. argN?");
         return TCL_ERROR;
     }
 
@@ -900,6 +896,8 @@ OracleSelectObjCmd (ClientData clientData, Tcl_Interp *interp,
     subcommand = Tcl_GetString(objv[1]);
 
     connection = dbh->connection;
+    connection->interp = interp;
+
     if (!connection) {
         Tcl_SetResult(interp, "error: no connection", NULL);
         return TCL_ERROR;
@@ -1060,9 +1058,12 @@ OracleSelectObjCmd (ClientData clientData, Tcl_Interp *interp,
 
     log(lexpos(), "%d bind variables", connection->n_columns);
 
-    if (connection->n_columns > 0)
+    if (connection->n_columns > 0) {
         malloc_fetch_buffers(connection);
+    }
 
+    /* Process bind variables. 
+     */
     for (var_p = bind_variables, i = 0; var_p != NULL; 
             var_p = var_p->next, i++) {
 
@@ -1070,56 +1071,82 @@ OracleSelectObjCmd (ClientData clientData, Tcl_Interp *interp,
         char *nbuf;
         char *value = NULL;
         int index;
-        int max_length = 0;
 
         fetchbuf->type = -1;
         index = strtol(var_p->string, &nbuf, 10);
+
+        /* Depending on how this proc was called we will get
+         * the values used in binding from one of three places:
+         * Tcl variable (if named bind), ns_set (if -bind was set), or 
+         * from the arguments (fi positional bind).
+         */
         if (*nbuf == '\0') {
+
             /* It was a valid number.
-               Pick out one of the remaining arguments,
-               where ":1" is the first remaining arg. */
+             * Pick out one of the remaining arguments,
+             * where ":1" is the first remaining arg. 
+             */
+
             if ((index < 1) || (index > (objc - argv_base - 1))) {
+
                 if (index < 1) {
                     Tcl_AppendResult(interp,
-                                     "invalid positional variable `:",
-                                     var_p->string,
-                                     "', valid values start with 1",
-                                     NULL);
+                            "invalid positional variable `:",
+                            var_p->string,
+                            "', valid values start with 1",
+                            NULL);
                 } else {
                     Tcl_AppendResult(interp,
-                                     "not enough arguments for positional variable ':",
-                                     var_p->string, "'", NULL);
+                            "not enough arguments for positional variable ':",
+                            var_p->string, "'", NULL);
                 }
+
                 Ns_OracleFlush(dbh);
                 string_list_free_list(bind_variables);
                 return TCL_ERROR;
             }
+
             value = Tcl_GetString(objv[index + argv_base]);
+
         } else {
+
             if (set == NULL) {
+
+                /* Look for bind value in Tcl variable. */
+                fetchbuf->name = var_p->string;
                 value = Tcl_GetVar(interp, var_p->string, 0);
+
                 if (value == NULL) {
                     Tcl_AppendResult(interp, "undefined variable `",
-                                     var_p->string, "'", NULL);
+                            var_p->string, "'", NULL);
                     Ns_OracleFlush(dbh);
                     string_list_free_list(bind_variables);
                     return TCL_ERROR;
                 }
+
             } else {
+
+                /* Look for bind value in Ns_Set. */
                 value = Ns_SetGet(set, var_p->string);
+
                 if (value == NULL) {
                     Tcl_AppendResult(interp, "undefined set element `",
-                                     var_p->string, "'", NULL);
+                            var_p->string, "'", NULL);
                     Ns_OracleFlush(dbh);
                     string_list_free_list(bind_variables);
                     return TCL_ERROR;
                 }
+
             }
         }
 
         if (array_p) {
-            /* Populate the array list. First split the list into individual values. Note
-               that Tcl_SplitList returns a block which we need to free later! */
+
+            /* 
+             * We are using array dml so attempt to split the value
+             * into a list.
+             */
+
             if ((Tcl_SplitList(interp, value,
                                &fetchbuf->array_count,
                                &fetchbuf->array_values)) != TCL_OK) {
@@ -1128,10 +1155,15 @@ OracleSelectObjCmd (ClientData clientData, Tcl_Interp *interp,
                 return TCL_ERROR;
             }
 
+            /*
+             * All lists need to be of the same length, so we keep
+             * track of that here.
+             */
+
             if (i == 0) {
-                /* First iteration - remember the number of items in the list. */
                 iters = fetchbuf->array_count;
             } else {
+
                 if ((int) iters != fetchbuf->array_count) {
                     Tcl_AppendResult(interp,
                                      "non-matching numbers of rows",
@@ -1140,43 +1172,46 @@ OracleSelectObjCmd (ClientData clientData, Tcl_Interp *interp,
                     string_list_free_list(bind_variables);
                     return TCL_ERROR;
                 }
+
             }
 
-            for (j = 0; j < (int) iters; ++j) {
-                /* Find the maximum length of any item in the list. */
-                int len = strlen(fetchbuf->array_values[j]);
-                if (len > max_length) {
-                    max_length = len;
-                }
-            }
-        } else {
+        } else if (!dml_p) {
             fetchbuf->buf = Ns_StrDup(value);
             fetchbuf->fetch_length = strlen(fetchbuf->buf) + 1;
             fetchbuf->is_null = 0;
         }
 
-        if (dbh->verbose)
+        if (dbh->verbose) {
             Ns_Log(Notice, "bind variable '%s' = '%s'", var_p->string,
-                   value);
+                    value);
+        }
 
-        log(lexpos(), "ns_ora dml:  binding variable %s",
-            var_p->string);
+        log(lexpos(), "ns_ora dml:  binding variable %s", var_p->string);
 
-        /* If array DML, use OCI_DATA_AT_EXEC (dynamic binding). Otherwise use
-           plain ol' OCI_DEFAULT. */
-        oci_status = OCIBindByName(connection->stmt,
-                                   &fetchbuf->bind,
-                                   connection->err,
-                                   var_p->string,
-                                   strlen(var_p->string),
-                                   array_p ? NULL : fetchbuf->buf,
-                                   array_p ? max_length +
-                                   1 : fetchbuf->fetch_length,
-                                   array_p ? SQLT_CHR : SQLT_STR,
-                                   array_p ? NULL : &fetchbuf->is_null,
-                                   0, 0, 0, 0,
-                                   array_p ? OCI_DATA_AT_EXEC :
-                                   OCI_DEFAULT);
+        if (dml_p || array_p) {
+            oci_status = OCIBindByName(connection->stmt,
+                                       &fetchbuf->bind,
+                                       connection->err,
+                                       var_p->string,
+                                       strlen(var_p->string),
+                                       NULL,
+                                       MAX_DYNAMIC_BUFFER,
+                                       array_p ? SQLT_CHR : SQLT_STR,
+                                       0, 0, 0, 0, 0,
+                                       OCI_DATA_AT_EXEC);
+        } else {
+            oci_status = OCIBindByName(connection->stmt,
+                                       &fetchbuf->bind,
+                                       connection->err,
+                                       var_p->string,
+                                       strlen(var_p->string),
+                                       fetchbuf->buf,
+                                       fetchbuf->fetch_length,
+                                       SQLT_STR,
+                                       &fetchbuf->is_null,
+                                       0, 0, 0, 0,
+                                       OCI_DEFAULT);
+        }
 
         if (oci_error_p
             (lexpos(), dbh, "OCIBindByName", query, oci_status)) {
@@ -1188,12 +1223,13 @@ OracleSelectObjCmd (ClientData clientData, Tcl_Interp *interp,
         }
 
         if (array_p) {
+
             /* Array DML - dynamically bind, using list_element_put_data (which will
-               return the right item for each iteration). */
+             * return the right item for each iteration). 
+             */
             oci_status = OCIBindDynamic(fetchbuf->bind,
                                         connection->err,
-                                        fetchbuf,
-                                        list_element_put_data,
+                                        fetchbuf, list_element_put_data,
                                         fetchbuf, get_data);
             if (tcl_error_p
                 (lexpos(), interp, dbh, "OCIBindDynamic", query,
@@ -1202,7 +1238,22 @@ OracleSelectObjCmd (ClientData clientData, Tcl_Interp *interp,
                 string_list_free_list(bind_variables);
                 return TCL_ERROR;
             }
+
+        } else if (dml_p) {
+
+            oci_status = OCIBindDynamic(fetchbuf->bind,
+                                        connection->err,
+                                        fetchbuf, DynamicBindIn,
+                                        fetchbuf, DynamicBindOut);
+            if (tcl_error_p
+                (lexpos(), interp, dbh, "OCIBindDynamic", query,
+                 oci_status)) {
+                Ns_OracleFlush(dbh);
+                string_list_free_list(bind_variables);
+                return TCL_ERROR;
+            }
         }
+
     }
 
     log(lexpos(), "ns_ora dml:  executing statement %s", nilp(query));
@@ -1212,6 +1263,24 @@ OracleSelectObjCmd (ClientData clientData, Tcl_Interp *interp,
                                 connection->err,
                                 iters, 0, NULL, NULL, 
                                 OCI_DEFAULT);
+
+    /*
+     * Handle DML with "RETURNING INTO" clause.  Currently will
+     * not work for array DML.
+     */
+
+    if (dml_p && !array_p) {
+        for (var_p = bind_variables, 
+            i = 0; var_p != NULL; 
+             var_p = var_p->next, i++) {
+
+            fetch_buffer_t *fetchbuf = &connection->fetch_buffers[i];
+            
+            if (fetchbuf->inout == BIND_OUT) {
+                Tcl_SetVar(interp, var_p->string, fetchbuf->buf, 0);
+            }
+        }
+    }
             
     string_list_free_list(bind_variables);
     if (connection->n_columns > 0) {
@@ -1307,7 +1376,7 @@ OracleSelectObjCmd (ClientData clientData, Tcl_Interp *interp,
  */
 static Ns_Set *
 Oracle0or1Row (Tcl_Interp *interp, Ns_DbHandle *handle, 
-        Ns_Set *row, int *nrows)
+               Ns_Set *row, int *nrows)
 {
     log(lexpos(), "entry");
 
@@ -1343,9 +1412,9 @@ Oracle0or1Row (Tcl_Interp *interp, Ns_DbHandle *handle,
 }
 /*}}}*/
 
-/*{{{ OracleLobDMLObjCmd */
+/*{{{ OracleLobDML */
 /*----------------------------------------------------------------------
- * OracleLobDMLObjCmd --
+ * OracleLobDML --
  *
  *      Implements [ns_ora clob_dml]
  *                 [ns_ora clob_dml_file]
@@ -1364,8 +1433,8 @@ Oracle0or1Row (Tcl_Interp *interp, Ns_DbHandle *handle,
  *----------------------------------------------------------------------
  */
 int
-OracleLobDMLObjCmd (ClientData clientData, Tcl_Interp *interp, 
-        int objc, Tcl_Obj *CONST objv[], Ns_DbHandle *dbh)
+OracleLobDML (Tcl_Interp *interp, int objc, 
+              Tcl_Obj *CONST objv[], Ns_DbHandle *dbh)
 {
     Tcl_Obj          **data;
     oci_status_t       oci_status;
@@ -1550,9 +1619,9 @@ OracleLobDMLObjCmd (ClientData clientData, Tcl_Interp *interp,
 }
 /*}}}*/
 
-/*{{{ OracleLobDMLBindObjCmd*/
+/*{{{ OracleLobDMLBind*/
 /*----------------------------------------------------------------------
- * OracleLobDMLBindObjCmd --
+ * OracleLobDMLBind --
  *
  *      Implements [ns_ora clob_dml_bind]
  *                 [ns_ora clob_dml_file_bind]
@@ -1571,8 +1640,8 @@ OracleLobDMLObjCmd (ClientData clientData, Tcl_Interp *interp,
  *----------------------------------------------------------------------
  */
 int
-OracleLobDMLBindObjCmd (ClientData clientData, Tcl_Interp *interp, 
-        int objc, Tcl_Obj *CONST objv[], Ns_DbHandle *dbh)
+OracleLobDMLBind (Tcl_Interp *interp, int objc, 
+                  Tcl_Obj *CONST objv[], Ns_DbHandle *dbh)
 {
     Tcl_Obj          **data;
     oci_status_t       oci_status;
@@ -1847,9 +1916,9 @@ OracleLobDMLBindObjCmd (ClientData clientData, Tcl_Interp *interp,
 }
 /*}}}*/
 
-/*{{{ OracleLobSelectObjCmd
+/*{{{ OracleLobSelect
  *----------------------------------------------------------------------
- * OracleLobSelectObjCmd --
+ * OracleLobSelect --
  *
  *      Implements [ns_ora clob_get_file]
  *                 [ns_ora blob_get_file]
@@ -1868,8 +1937,8 @@ OracleLobDMLBindObjCmd (ClientData clientData, Tcl_Interp *interp,
  *----------------------------------------------------------------------
  */
 int
-OracleLobSelectObjCmd (ClientData clientData, Tcl_Interp *interp, 
-        int objc, Tcl_Obj *CONST objv[], Ns_DbHandle *dbh)
+OracleLobSelect (Tcl_Interp *interp, int objc, 
+                 Tcl_Obj *CONST objv[], Ns_DbHandle *dbh)
 {
     oci_status_t       oci_status;
     ora_connection_t  *connection;
@@ -2023,9 +2092,9 @@ OracleLobSelectObjCmd (ClientData clientData, Tcl_Interp *interp,
 }
 /*}}}*/
 
-/*{{{ OracleGetColsObjCmd
+/*{{{ OracleGetCols
  *----------------------------------------------------------------------
- * OracleGetColsObjCmd --
+ * OracleGetCols --
  *
  *      Implements [ns_ora getcols] command.
  *
@@ -2038,8 +2107,8 @@ OracleLobSelectObjCmd (ClientData clientData, Tcl_Interp *interp,
  *----------------------------------------------------------------------
  */
 int
-OracleGetColsObjCmd (ClientData clientData, Tcl_Interp *interp, 
-        int objc, Tcl_Obj *CONST objv[], Ns_DbHandle *dbh)
+OracleGetCols (Tcl_Interp *interp, int objc, 
+               Tcl_Obj *CONST objv[], Ns_DbHandle *dbh)
 {
     ora_connection_t  *connection;
     oci_status_t       oci_status;
@@ -2103,7 +2172,7 @@ OracleGetColsObjCmd (ClientData clientData, Tcl_Interp *interp,
                                  (oci_param_t *) & param, i + 1);
         if (oci_error_p(lexpos(), dbh, "OCIParamGet", 0, oci_status)) {
             Ns_OracleFlush(dbh);
-            return 0;
+            return TCL_ERROR;
         }
 
         oci_status = OCIAttrGet(param,
@@ -2113,7 +2182,7 @@ OracleGetColsObjCmd (ClientData clientData, Tcl_Interp *interp,
                                 OCI_ATTR_NAME, connection->err);
         if (oci_error_p(lexpos(), dbh, "OCIAttrGet", 0, oci_status)) {
             Ns_OracleFlush(dbh);
-            return 0;
+            return TCL_ERROR;
         }
 
         /* Oracle gives us back a pointer to a string that is not null-terminated
@@ -2125,17 +2194,19 @@ OracleGetColsObjCmd (ClientData clientData, Tcl_Interp *interp,
         downcase(name);
 
         Tcl_ListObjAppendElement(interp, 
-                Tcl_GetObjResult(interp), Tcl_NewStringObj(name, -1));
+                Tcl_GetObjResult(interp), Tcl_NewStringObj(name, name1_size));
 
     }
+
+    Ns_OracleFlush(dbh);
 
     return TCL_OK;
 }
 /*}}}*/
 
-/*{{{ OracleResultRowsObjCmd
+/*{{{ OracleResultRows
  *----------------------------------------------------------------------
- * OracleResultRowsObjCmd --
+ * OracleResultRows --
  *
  *      Implements [ns_ora resultrows] command.
  *
@@ -2148,8 +2219,8 @@ OracleGetColsObjCmd (ClientData clientData, Tcl_Interp *interp,
  *----------------------------------------------------------------------
  */
 int
-OracleResultRowsObjCmd (ClientData clientData, Tcl_Interp *interp, 
-        int objc, Tcl_Obj *CONST objv[], Ns_DbHandle *dbh)
+OracleResultRows (Tcl_Interp *interp, int objc, 
+                  Tcl_Obj *CONST objv[], Ns_DbHandle *dbh)
 {
     ora_connection_t  *connection;
     oci_status_t       oci_status;
@@ -2184,9 +2255,9 @@ OracleResultRowsObjCmd (ClientData clientData, Tcl_Interp *interp,
 }
 /*}}}*/
 
-/*{{{ OracleDescObjCmd
+/*{{{ OracleDesc
  *----------------------------------------------------------------------
- * OracleDescObjCmd --
+ * OracleDesc --
  *
  *      Implements [ns_oracle desc] command.  
  *
@@ -2195,8 +2266,8 @@ OracleResultRowsObjCmd (ClientData clientData, Tcl_Interp *interp,
  *----------------------------------------------------------------------
  */
 int
-OracleDescObjCmd (ClientData clientData, Tcl_Interp *interp, 
-        int objc, Tcl_Obj *CONST objv[], Ns_DbHandle *dbh)
+OracleDesc (Tcl_Interp *interp, int objc, 
+            Tcl_Obj *CONST objv[], Ns_DbHandle *dbh)
 {
     ora_connection_t  *connection;
     oci_status_t       oci_status;
@@ -4365,6 +4436,8 @@ malloc_fetch_buffers(ora_connection_t * connection)
         fetchbuf->is_null = 0;
         fetchbuf->fetch_length = 0;
         fetchbuf->piecewise_fetch_length = 0;
+        fetchbuf->inout = 0;
+        fetchbuf->name = NULL;
 
         fetchbuf->lobs = NULL;
         fetchbuf->is_lob = 0;

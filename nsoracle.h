@@ -1,10 +1,14 @@
 /* $Id$ */
 
 #define NSORACLE_VERSION       "2.8a1"
+
 #define STACK_BUFFER_SIZE      20000
 #define EXEC_PLSQL_BUFFER_SIZE 4096
 #define MAX_DYNAMIC_BUFFER     5000000 /* FIXME: should be config param? */
 #define EXCEPTION_CODE_SIZE    5
+
+#define BIND_OUT               1
+#define BIND_IN                2
 
 /* Default values for the configuration parameters */
 #define DEFAULT_DEBUG  			NS_FALSE
@@ -52,23 +56,22 @@ typedef dvoid oci_attribute_t;
 typedef dvoid oci_param_t;
 typedef dvoid oci_descriptor_t;
 
-typedef int (OracleCmdProc) (ClientData clientData,
-	Tcl_Interp *interp, int objc, 
+typedef int (OracleCmdProc) (Tcl_Interp *interp, int objc, 
         struct Tcl_Obj * CONST * objv, Ns_DbHandle *dbh);
 
 Tcl_ObjCmdProc OracleObjCmd;
 
 OracleCmdProc 
-    OraclePLSQLObjCmd,
-    OracleExecPLSQLObjCmd,
-    OracleExecPLSQLBindObjCmd,
-    OracleResultRowsObjCmd,
-    OracleSelectObjCmd,
-    OracleLobSelectObjCmd,
-    OracleLobDMLObjCmd,
-    OracleLobDMLBindObjCmd,
-    OracleDescObjCmd,
-    OracleGetColsObjCmd;
+    OraclePLSQL,
+    OracleExecPLSQL,
+    OracleExecPLSQLBind,
+    OracleResultRows,
+    OracleSelect,
+    OracleLobSelect,
+    OracleLobDML,
+    OracleLobDMLBind,
+    OracleDesc,
+    OracleGetCols;
 
 /* When we start a query, we allocate one fetch buffer for each 
  * column that we're querying, i.e., if you say "select foo,bar from yow"
@@ -101,6 +104,9 @@ struct fetch_buffer {
     /* here's where the actual value from a particular row is kept */
     char *buf;
     char *name;
+
+    /* Used for dynamic binds. */
+    int   inout; 
 
     /* support for array DML: the array of values for this bind variable. */
     int array_count;
