@@ -65,6 +65,8 @@ typedef int (OracleCmdProc) (ClientData clientData,
 Tcl_ObjCmdProc OracleObjCommand;
 
 OracleCmdProc OraclePLSQLObjCommand,
+    OracleExecPLSQLObjCommand,
+    OracleExecPLSQLBindObjCommand,
     OracleResultRowsObjCommand,
     OracleSelectObjCommand,
     OracleLobSelectObjCommand,
@@ -2102,12 +2104,22 @@ OracleObjCommand (ClientData clientData, Tcl_Interp *interp,
 
     switch (subcmd) {
         case CPLSQL:
-        case CExecPLSQL:
-        case CExecPLSQLBind:
 
             flush_handle(dbh);
             return OraclePLSQLObjCommand(clientData, interp, 
                     objc, objv, dbh); 
+            break;
+
+        case CExecPLSQL:
+
+            return OracleExecPLSQLObjCommand(clientData, interp, 
+                    objc, objv, dbh); 
+            break;
+
+        case CExecPLSQLBind:
+
+            return OracleExecPLSQLBindObjCommand(clientData, interp,
+                    objc, objv, dbh);
             break;
 
         case CDesc:
@@ -2205,7 +2217,7 @@ OracleObjCommand (ClientData clientData, Tcl_Interp *interp,
  */
 int
 OraclePLSQLObjCommand (ClientData clientData, Tcl_Interp *interp, 
-                  int objc, Tcl_Obj *CONST objv[], Ns_DbHandle *dbh)
+        int objc, Tcl_Obj *CONST objv[], Ns_DbHandle *dbh)
 {
     ora_connection_t  *connection;
     oci_status_t       oci_status;
@@ -2419,6 +2431,339 @@ OraclePLSQLObjCommand (ClientData clientData, Tcl_Interp *interp,
 
     string_list_free_list(bind_variables);
     free_fetch_buffers(connection);
+
+    return NS_OK;
+}
+/*}}}*/
+
+/*{{{ OracleExecPLSQLObjCommand
+ *----------------------------------------------------------------------
+ * OracleExecPLSQLObjCommand --
+ *
+ *      Implements [ns_ora exec_plsql]
+ *
+ *      ns_ora exec_plsql dbhandle sql
+ *
+ * Results:
+ *
+ *      Nothing.
+ *
+ *----------------------------------------------------------------------
+ */
+int
+OracleExecPLSQLObjCommand (ClientData clientData, Tcl_Interp *interp, 
+        int objc, Tcl_Obj *CONST objv[], Ns_DbHandle *dbh)
+{
+    OCIBind           *bind;
+    ora_connection_t  *connection;
+    char              *query, *buf;
+    oci_status_t       oci_status;
+      
+    if (objc != 4) {
+        Tcl_AppendResult (interp, "wrong number of args: should be `",
+                Tcl_GetString(objv[0]), " exec_plsql dbId sql'", NULL);
+	return TCL_ERROR;
+    }
+      
+    connection = dbh->connection;
+    query = Tcl_GetString(objv[3]);
+      
+    if (!allow_sql_p(dbh, query, NS_TRUE)) {
+        Tcl_AppendResult (interp, "SQL ", query, " has been rejected "
+	        "by the Oracle driver", NULL);
+	return TCL_ERROR;
+    }
+
+    if (dbh->verbose) {
+	Ns_Log (Notice, "SQL():  %s", query);
+    }
+      
+    oci_status = OCIHandleAlloc (connection->env,
+                                 (oci_handle_t **) &connection->stmt,
+				 OCI_HTYPE_STMT,
+				 0, NULL);
+    if (tcl_error_p (lexpos (), interp, dbh, "OCIHandleAlloc",
+                query, oci_status)) {
+        flush_handle (dbh);
+	return TCL_ERROR;
+    }
+      
+    oci_status = OCIStmtPrepare (connection->stmt,
+				 connection->err,
+				 query, strlen (query),
+				 OCI_NTV_SYNTAX,
+				 OCI_DEFAULT);
+    if (tcl_error_p (lexpos (), interp, dbh, "OCIStmtPrepare", 
+                query, oci_status)) {
+        flush_handle (dbh);
+        return TCL_ERROR;
+    }
+      
+    buf = Ns_Malloc(EXEC_PLSQL_BUFFER_SIZE);
+
+    oci_status = OCIBindByPos (connection->stmt,
+			       &bind,
+			       connection->err,
+			       1,
+			       buf,
+			       EXEC_PLSQL_BUFFER_SIZE,
+			       SQLT_STR,
+			       0,
+			       0,
+			       0,
+			       0,
+			       0,
+			       OCI_DEFAULT);
+    if (tcl_error_p (lexpos (), interp, dbh, "OCIBindByPos", 
+                query, oci_status)) {
+	flush_handle (dbh);
+        Ns_Free(buf);
+
+        return TCL_ERROR;
+    }
+      
+    oci_status = OCIStmtExecute (connection->svc,
+				 connection->stmt,
+				 connection->err,
+				 1,
+				 0, NULL, NULL,
+				 (connection->mode == autocommit
+				  ? OCI_COMMIT_ON_SUCCESS
+				  : OCI_DEFAULT));
+    if (tcl_error_p (lexpos (), interp, dbh, "OCIStmtExecute", 
+                query, oci_status)) {
+	flush_handle (dbh);
+        Ns_Free(buf);
+	  
+        return TCL_ERROR;
+    }
+      
+    Tcl_AppendResult (interp, buf, NULL);
+    Ns_Free(buf);
+
+    return NS_OK;
+}
+/*}}}*/
+
+/*{{{ OracleExecPLSQLBindObjCommand
+ *----------------------------------------------------------------------
+ * OracleExecPLSQLBindObjCommand --
+ *
+ *      Implements [ns_ora exec_plsql_bind]
+ *
+ *      ns_ora exec_plsql_bind dbhandle sql return_var ?arg1 ... argn?
+ *
+ * Results:
+ *
+ *      Nothing.
+ *
+ *----------------------------------------------------------------------
+ */
+int
+OracleExecPLSQLBindObjCommand (ClientData clientData, Tcl_Interp *interp, 
+        int objc, Tcl_Obj *CONST objv[], Ns_DbHandle *dbh)
+{
+    ora_connection_t  *connection;
+    oci_status_t       oci_status;
+    string_list_elt_t *bind_variables, *var_p;
+    int                argv_base, i;
+    char               *retvar, *retbuf, *nbuf, *query;;
+      
+    if (objc < 5) {
+        Tcl_AppendResult (interp, "wrong number of args: should be `",
+	        Tcl_GetString(objv[0]), 
+                " exec_plsql_bind dbId sql retvar <args>'", NULL);
+	return TCL_ERROR;
+    }
+      
+    connection = dbh->connection;
+    query = Tcl_GetString(objv[3]);
+    retvar = Tcl_GetString(objv[4]);
+    
+    if (!allow_sql_p(dbh, query, NS_TRUE)) {
+        Tcl_AppendResult (interp, "SQL ", query, " has been rejected " 
+                "by the Oracle driver", NULL);
+        return TCL_ERROR;
+    }
+
+    if (dbh->verbose) {
+        Ns_Log (Notice, "SQL():  %s", query);
+    }
+      
+    oci_status = OCIHandleAlloc (connection->env,
+                                 (oci_handle_t **) &connection->stmt,
+                                 OCI_HTYPE_STMT,
+                                 0, NULL);
+    if (tcl_error_p (lexpos (), interp, dbh, "OCIHandleAlloc", 
+                query, oci_status)) {
+        flush_handle (dbh);
+        return TCL_ERROR;
+    }
+      
+    oci_status = OCIStmtPrepare (connection->stmt,
+                                 connection->err,
+				 query, strlen (query),
+				 OCI_NTV_SYNTAX,
+				 OCI_DEFAULT);
+    if (tcl_error_p (lexpos (), interp, dbh, "OCIStmtPrepare", 
+                query, oci_status)) {
+        flush_handle (dbh);
+        return TCL_ERROR;
+    }
+      
+    argv_base = 4;
+    retbuf = NULL;
+
+    bind_variables = parse_bind_variables(query);
+    connection->n_columns = string_list_len(bind_variables);
+      
+    log(lexpos(), "%d bind variables", connection->n_columns);
+
+    malloc_fetch_buffers (connection);
+
+    for (var_p = bind_variables, i=0; var_p != NULL; var_p = var_p->next, i++) {
+        fetch_buffer_t *fetchbuf = &connection->fetch_buffers[i];
+	char           *value = NULL;
+        int             index;
+
+        fetchbuf->type = -1;
+        index = strtol(var_p->string, &nbuf, 10);
+
+        if (*nbuf == '\0') {
+             /*  It was a valid number.
+              *  Pick out one of the remaining arguments,
+              *  where ":1" is the first remaining arg. 
+              */
+            if ((index < 1) || (index > (objc - argv_base - 1))) {
+
+                if (index < 1) {
+                    Tcl_AppendResult (interp, 
+                            "invalid positional variable `:",
+                            var_p->string, 
+                            "', valid values start with 1", NULL);
+                } else {
+                    Tcl_AppendResult (interp, 
+                            "not enough arguments for positional variable ':",
+                            var_p->string, "'", NULL);
+                }
+
+                flush_handle(dbh);
+                string_list_free_list(bind_variables);
+                  
+                return TCL_ERROR;
+            }
+
+            value = Tcl_GetString(objv[argv_base + index]);
+
+        } else {
+
+            value = Tcl_GetVar(interp, var_p->string, 0);
+
+            if (value == NULL) {
+                if (strcmp(var_p->string, retvar) == 0) {
+                      /*  It's OK if it's undefined, since this is 
+                       *  the return variable.
+                       */
+                    value = "";
+                } else {
+                    
+                    Tcl_AppendResult (interp, "undefined variable `", 
+                            var_p->string,
+                            "'", NULL);
+
+                    flush_handle(dbh);
+                    string_list_free_list(bind_variables);
+
+                    return TCL_ERROR;
+                }
+            }
+        }
+
+        if (strcmp(var_p->string, retvar) == 0) {
+
+            /*  This is the variable we're going to return
+             *  as the result.
+             */
+            retbuf = fetchbuf->buf = Ns_Malloc(EXEC_PLSQL_BUFFER_SIZE);
+            memset(retbuf, (int)'\0', (size_t)EXEC_PLSQL_BUFFER_SIZE);
+            strncpy(retbuf, value, EXEC_PLSQL_BUFFER_SIZE);
+            fetchbuf->fetch_length = EXEC_PLSQL_BUFFER_SIZE;
+            fetchbuf->is_null = 0;
+
+        } else {
+            fetchbuf->buf = Ns_StrDup(value);
+            fetchbuf->fetch_length = strlen(fetchbuf->buf) + 1;
+            fetchbuf->is_null = 0;
+        }
+
+        if (dbh->verbose) {
+            Ns_Log(Notice, "bind variable '%s' = '%s'", var_p->string, value);
+        }
+
+        log(lexpos(), "ns_ora exec_plsql_bind:  binding variable %s", 
+                var_p->string);
+
+        oci_status = OCIBindByName(connection->stmt,
+                                   &fetchbuf->bind,
+                                   connection->err,
+                                   var_p->string,
+                                   strlen(var_p->string),
+                                   fetchbuf->buf,
+                                   fetchbuf->fetch_length,
+                                   SQLT_STR,
+                                   &fetchbuf->is_null,
+                                   0,
+                                   0,
+                                   0,
+                                   0,
+                                   OCI_DEFAULT);
+
+        if (oci_error_p (lexpos (), dbh, "OCIBindByName", query, oci_status)) {
+            Tcl_SetResult(interp, dbh->dsExceptionMsg.string, TCL_VOLATILE);
+	    flush_handle (dbh);
+            string_list_free_list(bind_variables);
+
+	    return TCL_ERROR;
+	}
+
+    }
+
+    if (retbuf == NULL) {
+        Tcl_AppendResult(interp, "return variable '", retvar, 
+                "' not found in statement bind variables", NULL);
+        flush_handle (dbh);
+        string_list_free_list(bind_variables);
+
+        return TCL_ERROR;
+    }
+
+    oci_status = OCIStmtExecute (connection->svc,
+                                 connection->stmt,
+				 connection->err,
+				 1,
+				 0, NULL, NULL,
+				 (connection->mode == autocommit
+				 ? OCI_COMMIT_ON_SUCCESS
+				 : OCI_DEFAULT));
+
+    string_list_free_list(bind_variables);
+
+    if (tcl_error_p (lexpos (), interp, dbh, "OCIStmtExecute", 
+                query, oci_status)) {
+        flush_handle (dbh);
+        return TCL_ERROR;
+    }
+      
+    Tcl_AppendResult (interp, retbuf, NULL);
+      
+    /* Check to see if return variable was a Tcl variable */
+      
+    (void) strtol(retvar, &nbuf, 10);
+      
+    if (*nbuf != '\0') {
+          /* It was a variable name. */
+        Tcl_SetVar(interp, retvar, retbuf, 0);
+    }
 
     return NS_OK;
 }
@@ -2915,9 +3260,8 @@ OracleLobDMLObjCommand (ClientData clientData, Tcl_Interp *interp,
     int                blob_p = NS_FALSE;
 
     if (objc < 5) {
-        //Tcl_AppendResult(interp, "wrong number of args: should be `",
-        //                 argv[0], argv[1], "dbId query ",
-        //                 "[clobValues | filenames] ...'", NULL);
+        Tcl_WrongNumArgs(interp, 2, objv, \
+                "dbId query clobList [clobValues | filenames] ...");
         return TCL_ERROR;
     }
 
@@ -3127,9 +3471,8 @@ OracleLobDMLBindObjCommand (ClientData clientData, Tcl_Interp *interp,
     int                argv_base;
 
     if (objc < 5) {
-        //Tcl_AppendResult(interp, "wrong number of args: should be `",
-        //                 argv[0], argv[1], "dbId query clobList ",
-        //                 "[clobValues | filenames] ...'", NULL);
+        Tcl_WrongNumArgs(interp, 2, objv, \
+                "dbId query clobList [clobValues | filenames] ...");
         return TCL_ERROR;
     }
 
