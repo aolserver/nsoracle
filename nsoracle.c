@@ -356,6 +356,7 @@ OraclePLSQL (Tcl_Interp *interp, int objc,
             }
 
             fetchbuf->external_type = SQLT_RSET;
+            fetchbuf->inout         = BIND_OUT;
             fetchbuf->size          = 0;
 
             oci_status = OCIHandleAlloc (connection->env,
