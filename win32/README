@@ -1,0 +1,31 @@
+Building the Oracle driver for Win32
+--------------------------------------
+
+This directory contains a Visual Studio workspace for building the
+AOLserver Oracle driver for the Win32 platform.  It has been built and
+tested on Windows 98 but should build and run on Windows NT 4.0 and
+Windows 2000.
+
+
+How to build
+-------------
+
+First make sure that you have the ORACLE_HOME and NS_HOME environment
+variables set correctly.  On Windows 98, you set environment variables
+in your AUTOEXEC.BAT file. (You'll have to restart your system to make
+them visible to applications.)  On Windows NT, you can set environment
+variables in the Environment tab in the System control panel.
+
+The ORACLE_HOME variable might not be set automatically by the Oracle
+installation.  On Windows 98, it's typically "C:\orawin95" by default
+and on Windows NT it's usually "C:\orant".
+
+Be sure to set NS_HOME to the root of your AOLserver build directory,
+not the install directory.  The Oracle driver needs to link against
+the AOLserver lib files that are only found in the build tree.  You
+must build AOLserver before building the Oracle driver.
+
+Now you can open the oracle.dsw file in Visual Studio and build the
+project.  Copy the resulting ora8.dll file to your AOLserver bin
+directory and load it just as you would load ora8.so on UNIX.
+

@@ -1,0 +1,131 @@
+# $Id$
+
+# requires gmake
+
+# values you probably want to change.  These will get picked up from
+# the environment if they're set
+
+ifndef ORACLE_HOME
+    ORACLE_HOME = /ora8/m01/app/oracle/product/8.0.5
+endif
+
+ifndef NS_HOME
+    NS_HOME = /home/nsadmin
+endif
+
+
+# the version of this driver
+
+VERSION = 2.0.2
+
+
+# Oracle-specific settings
+
+ORACLE_CFLAGS = -I$(ORACLE_HOME)/rdbms/demo \
+                -I$(ORACLE_HOME)/network/public \
+                -I$(ORACLE_HOME)/plsql/public
+
+ORACLE_LDFLAGS = -L$(ORACLE_HOME)/lib
+
+ORACLE_OBJECTS = $(ORACLE_HOME)/rdbms/lib/ssdbaed.o \
+                 $(ORACLE_HOME)/rdbms/lib/kpudfo.o \
+                 $(ORACLE_HOME)/lib/nautab.o \
+                 $(ORACLE_HOME)/lib/naeet.o \
+                 $(ORACLE_HOME)/lib/naect.o \
+                 $(ORACLE_HOME)/lib/naedhs.o
+
+# there has _got_ to be a better way than including each of these 3 or 4 times
+ORACLE_LIBS = $(ORA_OBJECTS) -lnetv2 -lnttcp -lnetwork -lncr -lnetv2 -lnttcp \
+              -lnetwork -lclient -lcommon -lgeneric -lmm -lnlsrtl3 -lcore4 -lnlsrtl3 \
+              -lcore4 -lnlsrtl3 -lnetv2 -lnttcp -lnetwork -lncr -lnetv2 -lnttcp \
+              -lnetwork -lclient -lcommon -lgeneric -lepc -lnlsrtl3 -lcore4 \
+              -lnlsrtl3 -lcore4 -lnlsrtl3 -lclient -lcommon -lgeneric -lnlsrtl3 \
+              -lcore4 -lnlsrtl3 -lcore4 -lnlsrtl3
+
+# AOLserver-specific settings
+
+NS_CFLAGS = -I$(NS_HOME)/include
+
+
+# figure out our platform-specific stuff
+
+PLATFORM = BAD
+
+the_uname = $(shell uname)
+
+ifeq ($(the_uname), SunOS)
+    PLATFORM = solaris
+
+    CC = gcc
+    LD = ld -dy -G
+    CFLAGS = -Wall -g -fpic
+
+    SYSLIBS = -lnsl -lsocket -lgen -ldl -laio -lc -lm
+endif
+
+ifeq ($(the_uname), HP-UX)
+    PLATFORM = hpux
+
+    # for gcc
+    CC = gcc
+    LD = ld -b
+    CFLAGS = -Wall -g -fpic -D__hpux__ -D_REENTRANT
+	ORACLE_LIBS += -lclient -lsns
+
+    # for HP's compiler
+    # CC = /opt/ansic/bin/cc
+    # LD = ld
+    # CFLAGS = -Ae +z
+
+    SYSLIBS = -ldld
+endif
+
+ifeq ($(the_uname), Linux)
+    PLATFORM = linux
+    CC = gcc
+    LD = ld -dy -G
+    CFLAGS = -Wall -g -fpic
+endif
+
+# misc
+
+CFLAGS += $(ORACLE_CFLAGS) $(NS_CFLAGS)
+LIBS += $(ORACLE_OBJECTS) $(ORACLE_LIBS) $(SYSLIBS)
+LDFLAGS += $(ORACLE_LDFLAGS)
+
+# build rules
+
+default : ora8.so
+
+all : ora8.so ora8cass.so
+
+%.o : %.c
+	$(CC) $(CFLAGS) -c $<
+
+ora8.so : ora8.o
+	$(LD) -o $@ $< $(LDFLAGS) $(LIBS)
+
+ora8cass.o : ora8.c
+	$(CC) $(CFLAGS) -DFOR_CASSANDRACLE -o $@ -c $<
+
+ora8cass.so : ora8cass.o
+	$(LD) -o $@ $< $(LDFLAGS) $(LIBS)
+
+clean:
+	rm -f *.o *.so *~ core *.tar *.tar.gz
+	rm -rf oracle
+
+
+
+show_vars:
+	@echo SYSLIBS is "$(SYSLIBS)"
+	@echo ORACLE_CFLAGS is "$(ORACLE_CFLAGS)"
+	@echo ORACLE_LDFLAGS is "$(ORACLE_LDFLAGS)"
+	@echo ORACLE_OBJECTS is "$(ORACLE_OBJECTS)"
+	@echo ORACLE_LIBS is "$(ORACLE_LIBS)"
+	@echo CC is $(CC)
+	@echo LD is $(LD)
+	@echo CFLAGS is $(CFLAGS)
+	@echo LIBS is $(LIBS)
+	@echo LDFLAGS is $(LDFLAGS)
+
