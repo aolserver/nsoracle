@@ -2141,34 +2141,43 @@ ora_get_row (Ns_DbHandle *dbh, Ns_Set *row)
                   return NS_ERROR;
                 }
 	    
-	      /* Initialize the buffer we're going to use for the value. */
-              bufp =(ub1 *)Ns_Malloc(lob_buffer_size);
-	      Ns_DStringInit(&retval);
+	      if (lob_length == 0)
+		{
+		  Ns_SetPutValue (row, i, "");
+		}
 
-	      /* Do the read. */
-	      oci_status = OCILobRead (connection->svc,
-				       connection->err,
-				       fetchbuf->lob,
-				       &lob_length,
-				       (ub4) 1,
-				       bufp,
-				       lob_buffer_size,
-				       &retval,
-				       (OCICallbackLobRead) ora_append_buf_to_dstring,
-				       (ub2) 0,
-				       (ub1) SQLCS_IMPLICIT);
+	      else
+		{
+		  /* Initialize the buffer we're going to use for the value. */
+		  bufp =(ub1 *)Ns_Malloc(lob_buffer_size);
+		  Ns_DStringInit(&retval);
 
-              if (oci_error_p (lexpos (), dbh, "OCILobRead", 0, oci_status))
-                {
-                  flush_handle (dbh);
-                  Ns_DStringFree (&retval);
-                  Ns_Free(bufp);
-                  return NS_ERROR;
-                }
-	    
-              Ns_SetPutValue (row, i, Ns_DStringValue(&retval));
-	      Ns_DStringFree (&retval);
-              Ns_Free(bufp);
+		  /* Do the read. */
+		  oci_status = OCILobRead (
+		    connection->svc,
+		    connection->err,
+		    fetchbuf->lob,
+		    &lob_length,
+		    (ub4) 1,
+		    bufp,
+		    lob_buffer_size,
+		    &retval,
+		    (OCICallbackLobRead) ora_append_buf_to_dstring,
+		    (ub2) 0,
+		    (ub1) SQLCS_IMPLICIT);
+
+		  if (oci_error_p (lexpos (), dbh, "OCILobRead", 0, oci_status))
+		    {
+		      flush_handle (dbh);
+		      Ns_DStringFree (&retval);
+		      Ns_Free(bufp);
+		      return NS_ERROR;
+		    }
+		
+		  Ns_SetPutValue (row, i, Ns_DStringValue(&retval));
+		  Ns_DStringFree (&retval);
+		  Ns_Free(bufp);
+		}
             }
 	  break;
 	  
@@ -4340,179 +4349,183 @@ stream_write_lob (Tcl_Interp *interp, Ns_DbHandle *dbh, int rowind,
 				&loblen);
   if (tcl_error_p (lexpos (), interp, dbh, "OCILobGetLength", path, oci_status))
     goto bailout;
+
+  if (loblen > 0)
+    {
   
-  amtp = loblen;
+      amtp = loblen;
 
-  log (lexpos(), "loblen %d", loblen);
+      log (lexpos(), "loblen %d", loblen);
 
-  bufp = (ub1 *)Ns_Malloc(lob_buffer_size);
-  memset((void *)bufp, (int)'\0', (size_t)lob_buffer_size);
-  
-  oci_status = OCILobRead (svchp, 
-		       errhp, 
-		       lobl,
-		       &amtp, 
-		       offset, 
-		       bufp,
-		       (loblen < lob_buffer_size ? loblen : lob_buffer_size), 
-		       0, 
-		       0,
-		       0,
-		       SQLCS_IMPLICIT);
+      bufp = (ub1 *)Ns_Malloc(lob_buffer_size);
+      memset((void *)bufp, (int)'\0', (size_t)lob_buffer_size);
+      
+      oci_status = OCILobRead (svchp, 
+			   errhp, 
+			   lobl,
+			   &amtp, 
+			   offset, 
+			   bufp,
+			   (loblen < lob_buffer_size ? loblen : lob_buffer_size), 
+			   0, 
+			   0,
+			   0,
+			   SQLCS_IMPLICIT);
 
-  switch (oci_status)
-  {
-    case OCI_SUCCESS:             /* only one piece */
-      log (lexpos(), "stream read %d'th piece\n", (int)(++piece));
+      switch (oci_status)
+      {
+	case OCI_SUCCESS:             /* only one piece */
+	  log (lexpos(), "stream read %d'th piece\n", (int)(++piece));
 
-      bytes_written = stream_actually_write (fd, conn, bufp, loblen, to_conn_p);
+	  bytes_written = stream_actually_write (fd, conn, bufp, loblen, to_conn_p);
 
-      if (bytes_written != (int)loblen) 
-        {
-          if (errno == EPIPE) 
-            { 
-              status = STREAM_WRITE_LOB_PIPE; 
-              goto bailout; 
-            } 
-	  if (bytes_written < 0) 
+	  if (bytes_written != (int)loblen) 
 	    {
-	      Ns_Log (Error, "%s:%d:%s error writing %s.  error %d(%s)",
-		      lexpos(), path, errno, strerror(errno));
-	      Tcl_AppendResult (interp, "can't write ", path, 
-				" received error ", strerror(errno), NULL);
-	      goto bailout;
-	    }
-	  else 
-	    {
-	      Ns_Log (Error, "%s:%d:%s error writing %s.  incomplete write of %d out of %d",
-		      lexpos(), path, bytes_written, loblen);
-	      Tcl_AppendResult (interp, "can't write ", path,
-				" received error ", strerror(errno), NULL);
-	      goto bailout;
-	    }
-        }
-      break;
-
-    case OCI_ERROR:
-      break;
-
-    case OCI_NEED_DATA:           /* there are 2 or more pieces */
-
-      remainder = loblen;
-                                          /* a full buffer to write */
-      bytes_written = stream_actually_write (fd, conn, bufp,lob_buffer_size, to_conn_p);
-
-      if (bytes_written != lob_buffer_size) 
-        {
-          if (errno == EPIPE) 
-            { 
-              status = STREAM_WRITE_LOB_PIPE; 
-              goto bailout; 
-            } 
-	  if (bytes_written < 0) 
-	    {
-	      Ns_Log (Error, "%s:%d:%s error writing %s.  error %d(%s)",
-		      lexpos(), path, errno, strerror(errno));
-	      Tcl_AppendResult (interp, "can't write ", path,
-				" received error ", strerror(errno), NULL);
-	      goto bailout;
-	    }
-	  else 
-	    {
-	      Ns_Log (Error, "%s:%d:%s error writing %s.  incomplete write of %d out of %d",
-		      lexpos(), path, bytes_written, lob_buffer_size);
-	      Tcl_AppendResult (interp, "can't write ", path,
-				" received error ", strerror(errno), NULL);
-	      goto bailout;
-	    }
-        }
-
-      do
-        {
-	  memset(bufp, '\0', lob_buffer_size);
-	  amtp = 0;
-	  
-	  remainder -= lob_buffer_size;
-	  
-	  oci_status = OCILobRead (svchp,
-				   errhp,
-				   lobl,
-				   &amtp,
-				   offset,
-				   bufp,
-				   lob_buffer_size, 
-				   0, 
-				   0,
-				   0, 
-				   SQLCS_IMPLICIT);
-	  if (   oci_status != OCI_NEED_DATA
-	      && tcl_error_p (lexpos (), interp, dbh, "OCILobRead", 0, oci_status)) 
-	    {
-	      goto bailout;
-	    }
-	  
-	  
-	  /* the amount read returned is undefined for FIRST, NEXT pieces */
-	  log (lexpos(), "stream read %d'th piece, atmp = %d",
-	       (int)(++piece), (int)amtp);
-	  
-	  if (remainder < lob_buffer_size)
-	    {  /* last piece not a full buffer piece */
-		bytes_to_write = remainder;
-	    }
-	  else 
-	    {
-		bytes_to_write = lob_buffer_size;
-	    }
-
-	  bytes_written = stream_actually_write (fd, conn, bufp, bytes_to_write, to_conn_p);
-	  
-	  if (bytes_written != bytes_to_write) 
-	    {
-	      if (errno == EPIPE)
-	        {
-		  /* broken pipe means the user hit the stop button.
-		   * if that's the case, lie and say we've completed
-		   * successfully so we don't cause false-positive errors
-		   * in the server.log
-		   * photo.net ticket # 5901
-		   */
-		  status = STREAM_WRITE_LOB_PIPE;
-	        }
+	      if (errno == EPIPE) 
+		{ 
+		  status = STREAM_WRITE_LOB_PIPE; 
+		  goto bailout; 
+		} 
+	      if (bytes_written < 0) 
+		{
+		  Ns_Log (Error, "%s:%d:%s error writing %s.  error %d(%s)",
+			  lexpos(), path, errno, strerror(errno));
+		  Tcl_AppendResult (interp, "can't write ", path, 
+				    " received error ", strerror(errno), NULL);
+		  goto bailout;
+		}
 	      else 
-	        {
-		  if (bytes_written < 0) 
+		{
+		  Ns_Log (Error, "%s:%d:%s error writing %s.  incomplete write of %d out of %d",
+			  lexpos(), path, bytes_written, loblen);
+		  Tcl_AppendResult (interp, "can't write ", path,
+				    " received error ", strerror(errno), NULL);
+		  goto bailout;
+		}
+	    }
+	  break;
+
+	case OCI_ERROR:
+	  break;
+
+	case OCI_NEED_DATA:           /* there are 2 or more pieces */
+
+	  remainder = loblen;
+					      /* a full buffer to write */
+	  bytes_written = stream_actually_write (fd, conn, bufp,lob_buffer_size, to_conn_p);
+
+	  if (bytes_written != lob_buffer_size) 
+	    {
+	      if (errno == EPIPE) 
+		{ 
+		  status = STREAM_WRITE_LOB_PIPE; 
+		  goto bailout; 
+		} 
+	      if (bytes_written < 0) 
+		{
+		  Ns_Log (Error, "%s:%d:%s error writing %s.  error %d(%s)",
+			  lexpos(), path, errno, strerror(errno));
+		  Tcl_AppendResult (interp, "can't write ", path,
+				    " received error ", strerror(errno), NULL);
+		  goto bailout;
+		}
+	      else 
+		{
+		  Ns_Log (Error, "%s:%d:%s error writing %s.  incomplete write of %d out of %d",
+			  lexpos(), path, bytes_written, lob_buffer_size);
+		  Tcl_AppendResult (interp, "can't write ", path,
+				    " received error ", strerror(errno), NULL);
+		  goto bailout;
+		}
+	    }
+
+	  do
+	    {
+	      memset(bufp, '\0', lob_buffer_size);
+	      amtp = 0;
+	      
+	      remainder -= lob_buffer_size;
+	      
+	      oci_status = OCILobRead (svchp,
+				       errhp,
+				       lobl,
+				       &amtp,
+				       offset,
+				       bufp,
+				       lob_buffer_size, 
+				       0, 
+				       0,
+				       0, 
+				       SQLCS_IMPLICIT);
+	      if (   oci_status != OCI_NEED_DATA
+		  && tcl_error_p (lexpos (), interp, dbh, "OCILobRead", 0, oci_status)) 
+		{
+		  goto bailout;
+		}
+	      
+	      
+	      /* the amount read returned is undefined for FIRST, NEXT pieces */
+	      log (lexpos(), "stream read %d'th piece, atmp = %d",
+		   (int)(++piece), (int)amtp);
+	      
+	      if (remainder < lob_buffer_size)
+		{  /* last piece not a full buffer piece */
+		    bytes_to_write = remainder;
+		}
+	      else 
+		{
+		    bytes_to_write = lob_buffer_size;
+		}
+
+	      bytes_written = stream_actually_write (fd, conn, bufp, bytes_to_write, to_conn_p);
+	      
+	      if (bytes_written != bytes_to_write) 
+		{
+		  if (errno == EPIPE)
 		    {
-		      Ns_Log (Error, "%s:%d:%s error writing %s.  error %d(%s)",
-			      lexpos(), path, errno, strerror(errno));
-		      Tcl_AppendResult (interp, "can't write ", path, " for writing. ",
-					" received error ", strerror(errno), NULL);
+		      /* broken pipe means the user hit the stop button.
+		       * if that's the case, lie and say we've completed
+		       * successfully so we don't cause false-positive errors
+		       * in the server.log
+		       * photo.net ticket # 5901
+		       */
+		      status = STREAM_WRITE_LOB_PIPE;
 		    }
 		  else 
 		    {
-		      Ns_Log (Error, "%s:%d:%s error writing %s.  incomplete write of %d out of %d",
-			      lexpos(), path, bytes_written, bytes_to_write);
-		      Tcl_AppendResult (interp, "can't write ", path, " for writing. ",
-					" received error ", strerror(errno), NULL);
-		    }
-	        } 
-	      goto bailout;
-	    }
-         } while (oci_status == OCI_NEED_DATA);
-      break;
+		      if (bytes_written < 0) 
+			{
+			  Ns_Log (Error, "%s:%d:%s error writing %s.  error %d(%s)",
+				  lexpos(), path, errno, strerror(errno));
+			  Tcl_AppendResult (interp, "can't write ", path, " for writing. ",
+					    " received error ", strerror(errno), NULL);
+			}
+		      else 
+			{
+			  Ns_Log (Error, "%s:%d:%s error writing %s.  incomplete write of %d out of %d",
+				  lexpos(), path, bytes_written, bytes_to_write);
+			  Tcl_AppendResult (interp, "can't write ", path, " for writing. ",
+					    " received error ", strerror(errno), NULL);
+			}
+		    } 
+		  goto bailout;
+		}
+	     } while (oci_status == OCI_NEED_DATA);
+	  break;
 
-    default:
-      Ns_Log (Error, "%s:%d:%s: Unexpected error from OCILobRead (%d)",
-	      lexpos(), oci_status);
-      goto bailout;
-      break;
-    }
+	default:
+	  Ns_Log (Error, "%s:%d:%s: Unexpected error from OCILobRead (%d)",
+		  lexpos(), oci_status);
+	  goto bailout;
+	  break;
+	}
 
-  status = STREAM_WRITE_LOB_OK;
+      status = STREAM_WRITE_LOB_OK;
 
 bailout:
-  if (bufp)
-    Ns_Free(bufp);
+      if (bufp)
+	Ns_Free(bufp);
+    }
 
   if (!to_conn_p)
     {

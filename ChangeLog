@@ -1,5 +1,8 @@
 2002-10-03    <scott@scottg.net>
 
+	* all: Applied nsora 2.7 (only the ora8.c file). Tagged as
+	v2_7beta1.
+
 	* all: Applied nsora 2.6. Tagged as v2_6.
 
 	* all: Applied nsora 2.5. Tagged as v2_5.
