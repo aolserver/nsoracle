@@ -5236,7 +5236,7 @@ static int ora_reset_handle(Ns_DbHandle * dbh)
 /*{{{ ora_interp_init*/
 static int ora_interp_init(Tcl_Interp * interp, void *dummy)
 {
-    Tcl_CreateObjCommand (interp, "ns_oracle", OracleObjCommand, 
+    Tcl_CreateObjCommand (interp, "ns_ora", OracleObjCommand, 
             (ClientData) NULL, (Tcl_CmdDeleteProc *) NULL);
 
 #if defined(NS_AOLSERVER_3_PLUS)

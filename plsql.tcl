@@ -136,7 +136,7 @@ proc plsql::init { args } {
 
   ns_log notice Loading PL/SQL package $package . . .
 
-  set objects [ns_oracle desc $dbh $package]
+  set objects [ns_ora desc $dbh $package]
   ns_db releasehandle $dbh
 
   # for each object (procedure or function)
