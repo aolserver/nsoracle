@@ -1,80 +1,191 @@
+<!-- $Id$ -->
 <html>
 <head>
-<title>Oracle Driver for AOLserver</title>
+    <style type="text/css">
+        /*<![CDATA[*/
+        @import url('style.css');
+        /*]]>*/
+    </style>
+    <title>Oracle Driver for AOLserver</title>
 </head>
 
-<!-- $Id$ -->
+<body>
 
-<body bgcolor=#ffffff text=#000000>
-<h2>Oracle Driver</h2>
+<h1>Oracle Driver for <a href="http://www.aolserver.com/">AOLserver</a></h1>
 
-for <a href="http://www.aolserver.com/">AOLserver</a>,
-part of the <a href="/services.html">ArsDigita services section</a>
+<h2>Introduction</h2>
+This driver implements the standard AOLserver ns_db command interface for the
+Oracle database.  In addition it also implements an extended version
+of the ns_db interface through the ns_ora command.  The extended version is
+necessary to support advanced Oracle features such as bind variables, array
+dml, lobs, and plsql execution.
 
-<p>
+<h2>Extended API Reference</h2>
 
-This page was last updated on 2000-10-12.
-
-<hr>
-
-<b>Note</b>: If you are running version 1.0.2 of the Oracle driver, it
-is <strong>strongly recommended</strong> that you upgrade to at least version
-2.1 to prevent unexpected error conditions.  (See
-<a href="#Version History">Version History</a> or the README for more details.)
+AOLserver does not provide an ns_db abstraction for some things that it
+should. 
 
 <p>
-
-This product lets you use our favorite Web server, AOLserver, with
-the Oracle RDBMS.  If you want to see whether it works, use 
-the database-backed services at <a
-href="http://photo.net/photo/">photo.net</a>.  This is backed by Oracle
-8 and handles several queries/second at all times.
+<div class="api">
+<h4><b>ns_ora select</b> <i>dbhandle sql ?-bind set? ?arg1 ... argn?</i></h4>
+<h5>Implements bind variable aware version of <b>ns_db select</b> command.</h5>
+</div>
 
 <p>
-
-Our driver is free but making it work requires some C and Unix
-expertise.  Basically you have to have all the right Oracle libraries on
-the computer where you are running AOLserver.  In practice, we install
-the complete Oracle RDBMS on the same machine as AOLserver and then all
-the right stuff is there.  Anyway, then you have to compile the driver
-and make sure that AOLserver runs with the right environment variables
-set.  If this all sounds too hard, then you can hire us to install
-it on your machine and support you for one year.
-
-<h3>Support for special Oracle features</h3>
-
-<h4>Transactions</h4>
-
-Like all decent database products, Oracle supports transactions (a
-number of inserts, deletes, and updates that happen as a unit, or not
-at all).  Check out the <a
-href="http://arsdigita.com/books/sql/transactions.html">Transactions</a> chapter
-of <a href="http://arsdigita.com/books/sql/">SQL for Web Nerds</a> for details on
-the concept.
+<h4><b>ns_ora 0or1row</b> <i>dbhandle sql ?-bind set? ?arg1 ... argn?</i></h4>
+<h5>Implements bind variable aware version of <b>ns_db 0or1row</b> command.</h5>
 
 <p>
+<div class="api">
+<h4><b>ns_ora 1row</b> <i>dbhandle sql ?-bind set? ?arg1 ... argn?</i></h4>
+<h5>Implements bind variable aware version of <b>ns_db 1row</b> command.</h5>
+</div>
 
-To support transactions in the Oracle driver, we hijack
-<code>ns_db&nbsp;dml</code> and add three new commands:
-<ul>
-    <li> <b><code>begin transaction</code></b> - DML statements after this one 
-         are now within a transaction
-    <li> <b><code>end transaction</code></b> - commit the changes made during the
-         transaction
-    <li> <b><code>abort transaction</code></b> - roll back the transaction.  Any
-         DML statements made since the <code>begin transaction</code>
-         will be undone, as if they never happened.
-</ul>
+<p>
+<h4><b>ns_ora dml</b> <i>dbhandle sql ?-bind set? ?arg1 ... argn?</i></h4>
+<h5>Implements bind variable and transaction aware version of <b>ns_db dml</b> command.</h5>
 
+<p>
+<div class="api">
+<h4><b>ns_ora resultid</b> <i>dbhandle</i></h4>
+<h5>
+Returns the rowid (Oracle hidden column) of the last object affected by a DML
+command. This rowid can be used to determine the rowid for a newly-inserted
+row. Note that this is currently not implemented.
+</h5>
+</div>
+
+<p>
+<h4><b>ns_ora resultrows</b> <i>dbhandle</i></h4>
+<h5>
+Returns the number of rows affected by the last DML command. It can be used
+to determine how many rows were deleted or updated.
+</h5>
+
+<p>
+<div class="api">
+<h4><b>ns_ora exec_plsql</b> <i>dbhandle sql</i></h4>
+<h5>
+Executes the given PL/SQL statement, returing the value of the first bind
+variable in the statement.
+</h5>
+</div>
+
+<p>
+<h4>
+<b>ns_ora clob_dml</b> <i>dbhandle sql clob_value_1 ?clob_value 2 ...  clob_value_N?</i><br/>
+<b>ns_ora blob_dml</b> <i>dbhandle sql blob_value_1 ?blob_value 2 ...  blob_value_N?</i>
+</h4>
+<h5>
+Evaluates the given sql statement, inserting the the given values 
+into the columns specified by the bind variables referenced.
+</h5>
+
+<p>
+<div class="api">
+<h4>
+<b>ns_ora clob_dml_file</b> <i>dbhandle sql path1 ?path2 ... pathN?</i><br/>
+<b>ns_ora blob_dml_file</b> <i>dbhandle sql path1 ?path2 ... pathN?</i>
+</h4>
+<h5>
+Evaluates the given sql statement, inserting the contents of the
+given files into the columns as specified by the bind variables
+referenced.
+</h5>
+</div>
+
+<p>
+<h4>
+<b>ns_ora clob_get_file</b> <i>dbhandle sql path</i><br/>
+<b>ns_ora blob_get_file</b> <i>dbhandle sql path</i>
+</h4>
+<h5>
+Evaluates the given sql statement (which should return just one column
+from one row) and writes the value to the specified file.  (any previous
+file contents will be replaced by the new value)  The caller is
+responsible for deleting the file.
+</h5>
+
+<p>
+<div class="api">
+<h4>
+<b>ns_ora write_clob</b> <i>dbhandle sql ?nbytes?</i><br/>
+<b>ns_ora write_blob</b> <i>dbhandle sql ?nbytes?</i>
+</h4>
+<h5>
+Evaluates the given sql statement (which should return just one column
+from one row) and returns the value to the connection.  You can
+specify the number of bytes to be returned in the nbytes argument.  By
+default the entire BLOB/CLOB is returned.
+</h5>
+</div>
+
+<p>
+<h4><b>ns_ora array_dml</b> <i>dbhandle sql ?arg1 ... argn?</i></h4>
+<h5>Implements array dml version of <b>ns_db dml</b>.</h5>
+
+<p>
+<div class="api">
+<h4><b>ns_ora clob_dml_bind</b> <i>dbhandle sql list_of_lob_vars ?clob_value_1 clob_value_2 ... clob_value_N?</i></h4>
+<h5></h5>
+</div>
+
+<p>
+<h4><b>ns_ora blob_dml_bind</b> <i>dbhandle sql list_of_lob_vars ?clob_value_1 clob_value_2 ... clob_value_N?</i></h4>
+<h5></h5>
+
+<p>
+<div class="api">
+<h4><b>ns_ora clob_dml_file_bind</b> <i>dbhandle sql list_of_lob_vars ?clob_value_1 clob_value_2 ... clob_value_N?</i></h4>
+<h5></h5>
+</div>
+
+<p>
+<h4><b>ns_ora blob_dml_file_bind</b> <i>dbhandle sql list_of_lob_vars ?clob_value_1 clob_value_2 ... clob_value_N?</i></h4>
+<h5></h5>
+
+<p>
+<div class="api">
+<h4><b>ns_ora exec_plsql_bind</b> <i>dbhandle sql return_var ?arg1 ... argn?</i></h4>
+<h5></h5>
+</div>
+
+<h2>Oracle Support</h2>
+<h3>Transactions</h3>
+
+In order to support transactions the <b>ns_db dml</b> subcommand implements three 
+additional SQL-like commands.  These commands are as follows:
+
+<p>
+<table border="0" cellspacing="0" cellpadding="3" width="100%">
+<tr>
+    <th width="30%">Command</th>
+    <th>Description</th>
+</tr>
+<tr bgcolor="#eeeeee">
+    <td valign="top"><b>ns_db dml</b> "begin transaction"</td>
+    <td>DML statements after this one are now within a transaction</td>
+</tr>
+<tr>
+    <td valign="top"><b>ns_db dml</b> "end transaction"</td>
+    <td>Commit the changes made during the transaction</td>
+</tr>
+<tr bgcolor="#eeeeee">
+    <td valign="top"><b>ns_db dml</b> "abort transaction"</td>
+    <td>Roll back the transaction.  Any DML statements made since the begin transaction will be undone, as if they never happened.</td>
+</tr>
+</table>
+
+<p>
 For example:
 
-<blockquote><pre>
+<pre class="code">
 ns_db dml $db "begin transaction"
 ns_db dml $db "insert into users (user_id, email) values (1234, 'markd@arsdigita.com')"
 ns_db dml $db "update user_contact_info set aim_name='alex samoyed' where user_id=2342"
 ns_db dml $db "delete from user_group_map where group_id=55"
 ns_db dml $db "end transaction"
-</pre></blockquote>
+</pre>
 
 This will affect the contents of three tables once the
 <code>end&nbsp;transaction</code> statement is executed.
@@ -83,7 +194,7 @@ This will affect the contents of three tables once the
 
 You can combine Tcl <code>catch</code> statements and transaction control:
 
-<blockquote><pre>
+<pre class="code">
 ns_db dml $db "begin transaction"
 
 if [catch { ns_db dml $db "insert into ..." 
@@ -95,7 +206,7 @@ if [catch { ns_db dml $db "insert into ..."
 } else {
     # tell the user the transaction was successful
 }
-</pre></blockquote>
+</pre>
 
 This will roll back the transaction if an error happened during the
 processing of the insert and update.  If they finished succesfully,
@@ -113,7 +224,7 @@ try the redirect - only to find there actually is no group number
 because moving off the current page rolled back the creation of the
 group.
 
-<blockquote><pre>
+<pre class="code">
 if [catch { ns_db dml $db "begin transaction"
             ns_db dml $db $insert_for_user_groups
             if [info exists insert_for_helper_table] {
@@ -129,7 +240,7 @@ if [catch { ns_db dml $db "begin transaction"
 oups where group_id = $group_id"] > 0 } {
                     # group was already in database
                     ns_returnredirect "group.tcl?group_id=$group_id"
-</pre></blockquote>
+</pre>
 
 <p>
 
@@ -145,7 +256,7 @@ database in a consistant state after a failed transaction, you
 must wrap the transaction in a "catch" that explicitly drops
 the table upon error.
 
-<h4>CLOBs and BLOBs</h4>
+<h3>CLOBs and BLOBs</h3>
 
 Oracle lets you have character columns with up to 2 GB of data.  But
 their SQL parser can only handle string literals up to 4000 characters
@@ -155,9 +266,9 @@ columns of type CLOB or BLOB.
 
 <p>
 
-<blockquote><pre>
+<pre class="code">
 ns_ora clob_dml db query clob_value_1 clob_value_2 ... clob_value_N
-</pre></blockquote>
+</pre>
 
 The query must insert or update empty CLOBs into CLOB columns and
 return those columns into bind variables using RETURNING (but see
@@ -167,7 +278,7 @@ The clob_dml command inserts the Nth clob_value into the Nth bind
 variable.  The bind variable names are not significant.  Note that you
 don't have to escape apostrophes in the clob values.  For example,
 
-<blockquote><pre>
+<pre class="code">
 create table messages (
     message_id	integer primary key,
     subject     varchar(200),
@@ -177,13 +288,13 @@ create table messages (
 ns_ora clob_dml $db "insert into messages (message_id, subject, body)
 values (34, 'This is a test', empty_clob())
 returning body into :1" "Here's a long body ... to test clob inserts"
-</pre></blockquote>
+</pre>
 
 This would insert a new row into the table messages with message_id 34,
 subject "This is a test" and body "Here's a long ... clob inserts".
 The clob_dml command also works with updates.
 
-<blockquote><pre>
+<pre class="code">
 create table personal_ads (
     person_id		integer primary key,
     self_desc	        clob,
@@ -198,7 +309,7 @@ set self_desc = empty_clob(),
 where person_id = 96
 returning self_desc, bondage_story, perfect_mate_desc
 into :one, :two, :three" $new_self_desc $new_bondage_story $new_perfect_mate_desc
-</pre></blockquote>
+</pre>
 
 This updates the row where person_id = 96, setting the three CLOB
 columns to the values of the tcl variables $new_self_desc,
@@ -216,7 +327,7 @@ formdata.  You will probabily also want to view
 href="http://wimpy.arsdigita.com/public/presentation-top.adp?presentation_id=7042&user_id=561">this
 lecture by Philip Greenspun on how to do file upload with AOLserver</a>.)
 
-<blockquote><pre>
+<pre class="code">
 create table music_archive (
     album_id        integer primary key,
     title           varchar(200),
@@ -226,7 +337,7 @@ create table music_archive (
 ns_ora blob_dml_file $db "insert into music_archive (album_id, title, mp3)
 values (42, 'Old Skull''s Greatest Hits', empty_blob())
 returning mp3 into :1" /net/downloads/getoutofschool.mp3
-</pre></blockquote>
+</pre>
 
 But here, instead of supplying a string to insert into the column,
 you're specifying the path to a file.  The Oracle driver will read the
@@ -237,12 +348,12 @@ the Tcl API to read a binary file without the data getting munged.
 
 
 
-<blockquote><pre>
+<pre class="code">
 ns_ora blob_dml_file $db "update music_archive
 set mp3 = empty_blob()
 where album_id = 42
 returning mp3 into :1" /tmp/barrymanilow.mp3
-</pre></blockquote>
+</pre>
 
 This updates the row where album_id = 42, setting the BLOB column
 to the contents of /tmp/barrymanilow.mp3.  If there were multiple rows with
@@ -250,60 +361,61 @@ album_id = 42, each row is updated with the new BLOB value.
 
 
 
-<blockquote><pre>
+<pre class="code">
 ns_ora blob_get_file $db "select mp3 from music_archive
 where album_id = 42" /tmp/something.mp3
-</pre></blockquote>
+</pre>
 
 This writes the result of the query, which should return only one column
 from one row, into /tmp/something.mp3.
 
-<blockquote><pre>
+<pre class="code">
 ns_ora write_blob $db "select mp3 from music_archive
 where album_id = 42"
-</pre></blockquote>
+</pre>
 
 This returns the contents of the <code>mp3</code> column to the
 connection.  Note that you must first write appropriate headers, e.g., 
 
-<blockquote><pre>
+<pre class="code">
 ReturnHeaders audio/mpeg
 ns_ora write_blob $db "select mp3 ..."
-</pre></blockquote>
+</pre>
 
 <code>ReturnHeaders</code> is defined in the standard 
 ArsDigita utlities.tcl file, available from 
 <a href="http://arsdigita.com/books/panda/utilities.txt">http://arsdigita.com/books/panda/utilities.txt</a>.
 
-<h4>Calling PL/SQL Functions</h4>
+<p>
+<h3>Calling PL/SQL Functions</h3>
 
 You can call PL/SQL functions as normal dml statements.  For example,
 
-<blockquote><pre>
+<pre class="code">
 ns_db dml $db "declare begin bboard_update_index_column('$new_id'); end;"
-</pre></blockquote>
+</pre>
 
 To execute a PL/SQL function that returns a value, select it from table
 dual.  For example,
 
-<blockquote><pre>
+<pre class="code">
 ns_db select $db "select get_member_id('Joe', 'Smith') from dual"
-</pre></blockquote>
+</pre>
 
 But this will not work if the PL/SQL function has side effects (inserts
 or updates).  When the PL/SQL function has side effects, you must use
 the ns_ora exec_plsql command.
 
-<blockquote><pre>
+<pre class="code">
 ns_ora exec_plsql $db "begin :1 := get_new_member_id('Cotton', 'Seed'); end;"
-</pre></blockquote>
+</pre>
 
 The ns_ora exec_plsql command returns the value of the first bind
 variable in the PL/SQL statement.  The name of the bind variable is not
 significant.
 
 
-<h4>Bind variables</h4>
+<h3>Bind variables</h3>
 
 To support using bind variables, we provide some additional ns_ora calls.
 <ul>
@@ -339,7 +451,7 @@ variables: <ul>
 
 Examples:
 
-<blockquote><pre>
+<pre class="code">
 ns_ora dml $db "update users set last_name = :1
     where user_id = :2" "Gates" $user_id
 
@@ -352,7 +464,7 @@ ns_ora dml $db -bind $values "update users set last_name = :last_name
 set user_email "billg@microsoft.com"
 set selection [ns_ora 0or1row $db "select first_names,
     last_name from users where email = :user_email"]
-</pre></blockquote>
+</pre>
 
 With <code>clob_dml_bind</code>,
 <code>blob_dml_bind</code>,
@@ -369,7 +481,7 @@ programmer to pass that information in along with the variables.
 
 Examples:
 
-<blockquote><pre>
+<pre class="code">
 ns_ora clob_dml_bind $db "update manuscripts set text = :1
     where manuscript_id = :2" [list 1] $gettysburg_address $man_id
 
@@ -377,7 +489,7 @@ set gettysburg_address "Four score and seven years ago"
 set man_id 1861
 ns_ora clob_dml_bind $db "update manuscripts set text = :gettysburg_address
     where manuscript_id = :man_id" [list gettysburg_address]
-</pre></blockquote>
+</pre>
 
 The <code>exec_plsql_bind</code> call has a similar problem: it needs
 to be told which bind variable is the return value of the function.
@@ -388,14 +500,14 @@ a positional variable, then the variable's value will also be set.
 
 Examples:
 
-<blockquote><pre>
+<pre class="code">
 ns_ora exec_plsql_bind $db "begin :1 := translate_to_german('Four score'); end;" 1
 
 set english "Four score and seven years ago"
 ns_ora exec_plsql_bind $db "begin :deutsch := translate_to_german(:english); end;" deutsch
-</pre></blockquote>
+</pre>
 
-<h4>Array DML</h4>
+<h3>Array DML</h3>
 
 Array DML works exactly like single-row DML, except that the statement
 is executed multiple times with distinct data sets. This is useful
@@ -403,7 +515,7 @@ when inserting many similarly-structured items into the database.
 To use array DML, set the value of each bind variable to be a <i>list</i>
 rather than a single value, e.g.:
 
-<blockquote><pre>set last_names [list Gates Ellison Jobs]
+<pre class="code">set last_names [list Gates Ellison Jobs]
 set first_names [list Bill Larry Steve]
 set user_ids [list 666 816 1984]
 
@@ -431,78 +543,10 @@ ns_ora array_dml $db -bind $values "
     update users
     set last_name = :last_names, first_name = :first_names
     where user_id = :user_ids
-"</pre></blockquote>
+"</pre>
 
 Note that the statement is prepared (i.e., parsed) by Oracle only once,
 so there is much less overhead and far fewer round trips to the server.
-
-<h3>Extra AOLserver Tcl API calls</h3>
-
-AOLserver does not provide an ns_db abstraction for some things that it
-should.  Consequently, when talking to Illustra, they have ns_ill
-calls.  We were forced to provide ns_ora calls.  Here they are...
-
-<ul>
-
-<li>ns_ora resultid <i>dbhandle</i> -- returns the rowid (Oracle hidden
-column) of the last object affected by a DML command. This rowid can be
-used to determine the rowid for a newly-inserted row. Note that this is
-currently not implemented.
-<br><br>
-
-<li>ns_ora resultrows <i>dbhandle</i> -- returns the number of rows
-affected by the last DML command. It can be used to determine how many
-rows were deleted or updated.
-<br><br>
-
-<li>ns_ora exec_plsql <i>dbhandle sql</i> -- executes the given
-PL/SQL statement, returing the value of the first bind variable in the
-statement.
-<br><br>
-
-<li>ns_ora clob_dml <i>dbhandle sql clob_value_1 ?clob_value 2 ...
-clob_value_N?</i>
-<li>ns_ora blob_dml <i>dbhandle sql blob_value_1 ?blob_value 2 ...
-blob_value_N?</i><br>
-Evaluates the given sql statement, inserting the the given values 
-into the columns specified by the bind variables referenced.
-<br><br>
-
-<li>ns_ora clob_dml_file <i>dbhandle sql path1 ?path2 ... pathN?</i>
-<li>ns_ora blob_dml_file <i>dbhandle sql path1 ?path2 ... pathN?</i><br>
-Evaluates the given sql statement, inserting the contents of the
-given files into the columns as specified by the bind variables
-referenced.
-<br><br>
-
-<li>ns_ora clob_get_file <i>dbhandle sql path</i>
-<li>ns_ora blob_get_file <i>dbhandle sql path</i><br>
-Evaluates the given sql statement (which should return just one column
-from one row) and writes the value to the specified file.  (any previous
-file contents will be replaced by the new value)  The caller is
-responsible for deleting the file.
-<br><br>
-
-<li>ns_ora write_clob <i>dbhandle sql ?nbytes?</i>
-<li>ns_ora write_blob <i>dbhandle sql ?nbytes?</i><br>
-Evaluates the given sql statement (which should return just one column
-from one row) and returns the value to the connection.  You can
-specify the number of bytes to be returned in the nbytes argument.  By
-default the entire BLOB/CLOB is returned.
-<br><br>
-    
-<li>ns_ora select <i>dbhandle sql ?arg1 ... argn?</i>
-<li>ns_ora 0or1row <i>dbhandle sql ?arg1 ... argn?</i>
-<li>ns_ora 1row <i>dbhandle sql ?arg1 ... argn?</i>
-<li>ns_ora dml <i>dbhandle sql ?arg1 ... argn?</i>
-<li>ns_ora array_dml <i>dbhandle sql ?arg1 ... argn?</i>
-<li>ns_ora clob_dml_bind <i>dbhandle sql list_of_lob_vars ?clob_value_1 clob_value_2 ... clob_value_N?</i>
-<li>ns_ora blob_dml_bind <i>dbhandle sql list_of_lob_vars ?clob_value_1 clob_value_2 ... clob_value_N?</i>
-<li>ns_ora clob_dml_file_bind <i>dbhandle sql list_of_lob_vars ?clob_value_1 clob_value_2 ... clob_value_N?</i>
-<li>ns_ora blob_dml_file_bind <i>dbhandle sql list_of_lob_vars ?clob_value_1 clob_value_2 ... clob_value_N?</i>
-<li>ns_ora exec_plsql_bind <i>dbhandle sql return_var ?arg1 ... argn?</i><br>
-These are described above under the <b>Bind Variables</b> section.
-</ul>
 
 
 <h3>Where's the code?</h3>
@@ -540,74 +584,46 @@ Oracle.
 <h3>Weird stuff to remember</h3>
 </a>
 
-Make sure to set the AOLserver StackSize parameter to something
-reasonable, e.g., 500000, if you're using our driver and any recursion
-in Tcl.  The installation instruction page for the ArsDigita Community
-System covers this.  Basically the problem is that AOLserver only
-allocates a stack by default of 50,000 bytes.  Cotton Seed wrote the
-driver initially to stack-allocate 40,000 bytes to handle error
-messages.  I guess this is how C programmers deal with the fact that
-they don't have a real computer language like Lisp that can allocate
-appropriate-sized data structures on the fly.  Anyway, that only leaves
-10,000 bytes for Tcl recursion, which might not be enough.  Here's an
-example of bumping up the stack size:
+Make sure to set the AOLserver stacksize parameter to something reasonable,
+e.g., 500000, if you're using our driver and any recursion in Tcl.  If you
+are experiencing random crashes with no explanation this is most likely your
+problem.
 
-<blockquote>
-<pre>
-[ns/parameters]
-User=nsadmin
-Home=/home/nsadmin
-StackSize=500000
+<p>
+Here's an example of bumping up the stack size:
+
+<pre class="code">
+ns_section "ns/threads"
+ns_param   stacksize 500000
 </pre>
 
-</blockquote>
+There are also a number of moving pieces in the AOLserver database
+configuration.  The one that seems to give folks the most trouble is the
+DataSource parameter in the pool configuration.  It should look something
+like this:
 
-There are also a number of moving pieces in the AOLserver database 
-configuration.  The one that seems to give folks the most trouble
-is the DataSource parameter in the pool configuration.  It should look
-something like this:
-
-<blockquote>
-<code>
-[ns/db/pool/poolname]<br>
-Driver=ora8<br>
-Connections=4<br>
-<b>DataSource=</b><br>
-User=alex<br>
-Password=woofwoof<br>
-Verbose=On<br>
-ExtendedTableInfo=On<br>
-</code>
-</blockquote>
-
-DataSource must be included, and it should be blank.  You may want
-to take a peek at a <a href="sample-db-ini.txt">sample database
-configuration</a> section.
+<pre class="code">
+ns_section "ns/db/pool/ximian"
+ns_param Driver               ora8   
+ns_param Connections          3      
+ns_param User                 scott
+ns_param Password             tiger
+ns_param LogSQLErrors         On
+<b>ns_param Datasource           dev</b>
+ns_param ExtendedTableInfo    On
+</pre>
 
 <p>
-
-Be sure to set your Oracle environment variables.  Take a look
-at our <a href="sample-nsd-oracle.txt">sample AOLserver/Oracle
-startup script</a>
-
-<p>
-
-If you're wanting to run AOLserver on one machine and Oracle on
-another, then check out <a
-href="http://photo.net/bboard/q-and-a-fetch-msg.tcl?msg_id=000SNv">
-this thread</a> on photo.net.  We don't use this configuration
-ourselves so we haven't tested it.
-
-<p>
-
 We have encountered error ORA-24812 when reading CLOBs containing UTF-8
 data from the database.  Increasing the chunk size that the driver uses to
 read the LOBs helps avoid the problem.  The default size is 16K.  You
 can set the size in bytes of the LOB buffer by adding something like
 this to your config file:
 
-<blockquote><pre>[ns/db/driver/ora8]
-LOBBufferSize=200000</pre></blockquote>
+<pre class="code">
+[ns/db/driver/ora8]
+LOBBufferSize=200000
+</pre>
 
 Assuming you loaded the driver using the name "ora8", this makes the
 driver will use a buffer size of 200000 bytes.
@@ -617,8 +633,8 @@ driver will use a buffer size of 200000 bytes.
 If you encounter error ORA-01406, "fetched column value was truncated",
 you need to use the CharExpansion parameter:
 
-<blockquote><pre>[ns/db/driver/ora8]
-CharExpansion=2</pre></blockquote>
+<pre class="code">[ns/db/driver/ora8]
+CharExpansion=2</pre>
 
 This will make the driver allocate twice as much space for char and
 varchar columns.
@@ -652,5 +668,6 @@ use, and how to generate your own version of these files if necessary.
 
 <hr>
 <a href="mailto:markd@arsdigita.com"><address>markd@arsdigita.com</address></a>
+<a href="mailto:jeremy.collins@tclsource.org"><address>jeremy.collins@tclsource.org</address></a>
 </body>
 </html>

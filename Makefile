@@ -45,15 +45,17 @@ HDRS     =
 # Extra libraries
 #
 ORA_VERSION=$(shell grep OCI_LOGON2 $(ORACLE_HOME)/rdbms/demo/oci.h)
+NS_VERSION=$(shell grep NS_VERSION $(NSHOME)/include/ns.h)
 
 ifeq (,$(findstring OCI_LOGON2,$(ORA_VERSION)))
-MODLIBS  =  -L$(ORACLE_HOME)/lib \
-	-lclntsh -lcore8 -lcommon8 -lgeneric8 -lclient8
+MODLIBS  =  -L$(ORACLE_HOME)/lib -lclntsh -lcore8 -lcommon8 -lgeneric8 -lclient8
 else
-MODLIBS  =  -L$(ORACLE_HOME)/lib \
-    -lclntsh -lcore9 -lcommon9 -lgeneric9 -lclient9
+MODLIBS  =  -L$(ORACLE_HOME)/lib -lclntsh -lcore9 -lcommon9 -lgeneric9 -lclient9
 endif
 
+ifneq (,$(findstring NS_VERSION,$(NS_VERSION)))
+MODLIBS  +=  -lnsdb
+endif
 
 ########################################################################
 # Copied from Makefile.module because this module is a little more
@@ -73,16 +75,13 @@ CFLAGS := \
 
 all: $(MOD) $(MODCASS)
 
-# Override LIBS variable
-LIBS=
-
 $(MOD): $(OBJS)
 	$(RM) $@
-	$(LDSO) -o $@ $(OBJS) $(MODLIBS)
+	$(LDSO) $(LDFLAGS) -o $@ $(OBJS) $(MODLIBS) $(LIBS)
 
 $(MODCASS): $(OBJSCASS)
 	$(RM) $@
-	$(LDSO) -o $@ $(OBJSCASS) $(MODLIBS)
+	$(LDSO) $(LDFLAGS) -o $@ $(OBJSCASS) $(MODLIBS) $(LIBS)
 
 $(OBJS): $(HDRS)
 
