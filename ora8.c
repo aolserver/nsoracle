@@ -2351,8 +2351,15 @@ flush_handle (Ns_DbHandle *dbh)
       error (lexpos (), "invalid args, `NULL' database handle");
       return NS_ERROR;
     }
-  
+
   connection = dbh->connection;
+
+  if (connection == 0)
+    {
+      /* Connection is closed.  That's as good as flushed to me */
+      return NS_OK;
+    }
+
   if (connection->stmt != 0)
     {
       oci_status = OCIHandleFree (connection->stmt,
