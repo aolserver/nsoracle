@@ -4,6 +4,7 @@
 
 #define STACK_BUFFER_SIZE      20000
 #define EXEC_PLSQL_BUFFER_SIZE 4096
+#define DML_BUFFER_SIZE        4000
 #define MAX_DYNAMIC_BUFFER     5000000 /* FIXME: should be config param? */
 #define EXCEPTION_CODE_SIZE    5
 
@@ -37,10 +38,6 @@ NS_EXPORT int Ns_ModuleVersion = 1;
 
 static char *ora_driver_version = "Oracle Driver version " NSORACLE_VERSION;
 static char *ora_driver_name = "Oracle8";
-
-static sb2 null_ind = -1;
-static sb2 rc = 0;
-static ub4 rl = 0;
 
 /*  
  *  The OCI lumps a bunch of different things into two C types, sword 
@@ -229,6 +226,12 @@ enum {
     STREAM_WRITE_LOB_OK = 0,
     STREAM_WRITE_LOB_ERROR,
     STREAM_WRITE_LOB_PIPE       /* user click stop, but we need to do some cleanup */
+};
+
+enum {
+    DYNAMIC_BIND_POSITIONAL = 0,
+    DYNAMIC_BIND_NAMED,
+    DYNAMIC_BIND_SET
 };
 
 /* Utility functions */

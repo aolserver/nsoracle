@@ -15,6 +15,10 @@
 
 #include "nsoracle.h"
 
+static sb2 null_ind = -1;
+static sb2 rc = 0;
+static ub4 rl = 0;
+
 /*
  * [ns_ora] implementation.
  */
@@ -39,8 +43,12 @@ DynamicBindIn(dvoid * ictxp,
     ora_connection_t *connection = fbPtr->connection;;
     char             *value;
 
-    value = Tcl_GetVar(connection->interp, fbPtr->name, 0);
-
+    if(fbPtr->name != NULL) {
+        value = Tcl_GetVar(connection->interp, fbPtr->name, 0);
+    } else if (fbPtr->buf != NULL) {
+        value = fbPtr->buf;
+    }
+    
     *bufpp = value;
     *alenp = strlen(value) + 1;
     *piecep = OCI_ONE_PIECE;
@@ -64,10 +72,10 @@ DynamicBindIn(dvoid * ictxp,
 static sb4
 DynamicBindOut (dvoid * ctxp, OCIBind * bindp,
                 ub4 iter, ub4 index, dvoid ** bufpp, 
-                ub4 ** alenp, ub1 * piecep,
+                ub4 ** alenpp, ub1 * piecep,
                 dvoid ** indpp, ub2 ** rcodepp)
 {
-    fetch_buffer_t   *fbPtr = (fetch_buffer_t *) ctxp;
+    fetch_buffer_t   *fetchbuf = (fetch_buffer_t *) ctxp;
 
     log(lexpos(), "entry (dbh %p; iter %d, index %d)", ctxp, iter, index);
 
@@ -76,28 +84,30 @@ DynamicBindOut (dvoid * ctxp, OCIBind * bindp,
         return NS_ERROR;
     }
 
-    switch (*piecep) {
-    case OCI_ONE_PIECE:
-    case OCI_NEXT_PIECE:
-
-        /* 
-         * Oracle needs space for this OUT parameter.  Hopefully
-         * this is enough, if not OCI will call us again with
-         * OCI_NEXT_PIECE and we'll allocate more space.
-         */
-
-        fbPtr->buf = (char *) Ns_Realloc(fbPtr->buf, 
-                EXEC_PLSQL_BUFFER_SIZE + fbPtr->buf_size);
-
-        *bufpp = fbPtr->buf + fbPtr->buf_size;
-        **alenp = EXEC_PLSQL_BUFFER_SIZE;
-        *indpp = NULL;
-        *piecep = OCI_NEXT_PIECE;
-
-        fbPtr->buf_size = EXEC_PLSQL_BUFFER_SIZE + fbPtr->buf_size;
-        fbPtr->inout = BIND_OUT;
-
+    if (*piecep == OCI_ONE_PIECE || *piecep == OCI_FIRST_PIECE) {
+        fetchbuf->fetch_length = 0;
+    } else if (*piecep == OCI_NEXT_PIECE) {
+        fetchbuf->fetch_length += fetchbuf->piecewise_fetch_length;
     }
+
+    if (fetchbuf->fetch_length >= fetchbuf->buf_size / 2) {
+        fetchbuf->buf_size += EXEC_PLSQL_BUFFER_SIZE;
+        fetchbuf->buf = Ns_Realloc (fetchbuf->buf, fetchbuf->buf_size);
+    }
+
+    fetchbuf->piecewise_fetch_length = fetchbuf->buf_size - fetchbuf->fetch_length;
+
+    log (lexpos (), "%d, %d, %d",
+        fetchbuf->buf_size,
+        fetchbuf->fetch_length,
+        fetchbuf->piecewise_fetch_length);
+
+    *bufpp = &fetchbuf->buf[fetchbuf->fetch_length];
+    *alenpp = &fetchbuf->piecewise_fetch_length;
+    *indpp = &fetchbuf->is_null;
+    *rcodepp = &rc;
+  
+    fetchbuf->inout = BIND_OUT;
 
     return OCI_CONTINUE;
 }
@@ -124,22 +134,22 @@ OracleObjCmd (ClientData clientData, Tcl_Interp *interp,
     static CONST char *subcmds[] = {
         "plsql", "exec_plsql", "exec_plsql_bind", "desc", "select",
         "dml", "array_dml", "1row", "0or1row", "getcols", "resultrows",
-        "clob_dml", "clob_dml_file", 
-        "blob_dml", "blob_dml_file"
+        "clob_get_file", "blob_get_file",
         "clob_dml_bind", "clob_dml_file_bind", 
         "blob_dml_bind", "blob_dml_file_bind",
-        "clob_get_file", "blob_get_file",
+        "clob_dml", "clob_dml_file", 
+        "blob_dml", "blob_dml_file"
         "write_clob", "write_blob"
     };
 
     enum ISubCmdIdx {
         CPLSQL, CExecPLSQL, CExecPLSQLBind, CDesc, CSelect,
         CDML, CArrayDML, C1Row, C0or1Row, CGetCols, CResultRows,
-        CClobDML, CClobDMLFile, 
-        CBlobDML, CBlobDMLFile,
+        CClobGetFile, CBlobGetFile,
         CClobDMLBind, CClobDMLFileBind, 
         CBlobDMLBind, CBlobDMLFileBind,
-        CClobGetFile, CBlobGetFile,
+        CClobDML, CClobDMLFile, 
+        CBlobDML, CBlobDMLFile,
         CWriteClob, CWriteBlob
     } subcmd;
 
@@ -148,8 +158,8 @@ OracleObjCmd (ClientData clientData, Tcl_Interp *interp,
         return TCL_ERROR;
     }
 
-    if (Tcl_GetIndexFromObj(interp, objv[1], subcmds, "command", 0,
-            (int *) &subcmd) != TCL_OK) {
+    if (Tcl_GetIndexFromObj(interp, objv[1], subcmds, "command", TCL_EXACT,
+            (int *)&subcmd) != TCL_OK) {
         return TCL_ERROR;
     }
 
@@ -1071,7 +1081,7 @@ OracleSelect (Tcl_Interp *interp, int objc,
         fetch_buffer_t *fetchbuf = &connection->fetch_buffers[i];
         char *nbuf;
         char *value = NULL;
-        int index;
+        int index, max_length = 0;
 
         fetchbuf->type = -1;
         index = strtol(var_p->string, &nbuf, 10);
@@ -1128,6 +1138,7 @@ OracleSelect (Tcl_Interp *interp, int objc,
             } else {
 
                 /* Look for bind value in Ns_Set. */
+                //fetchbuf->name = var_p->string;
                 value = Ns_SetGet(set, var_p->string);
 
                 if (value == NULL) {
@@ -1142,6 +1153,7 @@ OracleSelect (Tcl_Interp *interp, int objc,
         }
 
         if (array_p) {
+            int j;
 
             /* 
              * We are using array dml so attempt to split the value
@@ -1176,7 +1188,20 @@ OracleSelect (Tcl_Interp *interp, int objc,
 
             }
 
-        } else if (!dml_p) {
+            for (j = 0; j < (int) iters; ++j) {
+                int len = strlen(fetchbuf->array_values[j]);
+                if (len > max_length) {
+                    max_length = len;
+                }
+            }
+
+        } else if (dml_p) {
+            fetchbuf->buf = Ns_Malloc(DML_BUFFER_SIZE);
+            memset(fetchbuf->buf, (int) '\0', (size_t) DML_BUFFER_SIZE);
+            strncpy(fetchbuf->buf, value, DML_BUFFER_SIZE);
+            fetchbuf->fetch_length = DML_BUFFER_SIZE;
+            fetchbuf->is_null = 0;
+        } else {
             fetchbuf->buf = Ns_StrDup(value);
             fetchbuf->fetch_length = strlen(fetchbuf->buf) + 1;
             fetchbuf->is_null = 0;
@@ -1189,15 +1214,17 @@ OracleSelect (Tcl_Interp *interp, int objc,
 
         log(lexpos(), "ns_ora dml:  binding variable %s", var_p->string);
 
-        if (dml_p || array_p) {
+        if (array_p || dml_p) {
             oci_status = OCIBindByName(connection->stmt,
                                        &fetchbuf->bind,
                                        connection->err,
                                        var_p->string,
                                        strlen(var_p->string),
                                        NULL,
-                                       MAX_DYNAMIC_BUFFER,
-                                       array_p ? SQLT_CHR : SQLT_STR,
+                                       array_p ? max_length : 
+                                                fetchbuf->fetch_length,
+                                       array_p ? SQLT_CHR : 
+                                                 SQLT_STR,
                                        0, 0, 0, 0, 0,
                                        OCI_DATA_AT_EXEC);
         } else {
@@ -1278,7 +1305,11 @@ OracleSelect (Tcl_Interp *interp, int objc,
             fetch_buffer_t *fetchbuf = &connection->fetch_buffers[i];
             
             if (fetchbuf->inout == BIND_OUT) {
-                Tcl_SetVar(interp, var_p->string, fetchbuf->buf, 0);
+                if (set == NULL) {
+                    Tcl_SetVar(interp, var_p->string, fetchbuf->buf, 0);
+                } else {
+                    Ns_SetUpdate(set, var_p->string, fetchbuf->buf);
+                }
             }
         }
     }
@@ -2737,6 +2768,9 @@ Ns_OracleInterpInit (Tcl_Interp *interp, void *dummy)
     Tcl_CreateObjCommand (interp, "ns_ora", OracleObjCmd, 
             (ClientData) NULL, (Tcl_CmdDeleteProc *) NULL);
 
+    Tcl_CreateObjCommand (interp, "ns_oracle", OracleObjCmd, 
+            (ClientData) NULL, (Tcl_CmdDeleteProc *) NULL);
+
 #if defined(NS_AOLSERVER_3_PLUS)
     Tcl_CreateCommand(interp, "ns_column", ora_column_command, NULL, NULL);
     Tcl_CreateCommand(interp, "ns_table", ora_table_command, NULL, NULL);
@@ -4141,7 +4175,6 @@ oci_error_p(char *file, int line, char *fn,
                     snprintf(msgbuf, STACK_BUFFER_SIZE, "%s", errorbuf);
                 }
 
-                Ns_Log(Notice, "GETTING OFFSET");
                 oci_status1 = OCIAttrGet(connection->stmt,
                                          OCI_HTYPE_STMT,
                                          &offset,
@@ -4189,8 +4222,6 @@ oci_error_p(char *file, int line, char *fn,
             snprintf(msgbuf, STACK_BUFFER_SIZE, "Error - OCI_CONTINUE");
             break;
     }
-
-    Ns_Log(Notice, "%d, %d", strlen(query), offset);
 
     if (((errorcode == 900) || (offset > 0)) && (strlen(query) >= offset)) {
         /* ora-00900 is invalid sql statment

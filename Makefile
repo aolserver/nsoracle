@@ -44,14 +44,15 @@ HDRS     =
 #
 # Extra libraries
 #
-ORA_VERSION=$(shell grep OCI_LOGON2 $(ORACLE_HOME)/rdbms/demo/oci.h)
+OCI_VERSION=$(shell strings $(ORACLE_HOME)/lib/libclntsh.so | grep "^Version.[0-9]\+\.[0-9]")
+OCI_MAJOR_VERSION=$(shell echo $(OCI_VERSION) | cut -d ' ' -f2 | cut -d '.' -f1)
 NS_VERSION=$(shell grep NS_VERSION $(NSHOME)/include/ns.h)
 
-ifeq (,$(findstring OCI_LOGON2,$(ORA_VERSION)))
-MODLIBS  =  -L$(ORACLE_HOME)/lib -lclntsh -lcore8 -lcommon8 -lgeneric8 -lclient8
-else
-MODLIBS  =  -L$(ORACLE_HOME)/lib -lclntsh -lcore9 -lcommon9 -lgeneric9 -lclient9
-endif
+MODLIBS  =  -L$(ORACLE_HOME)/lib -lclntsh \
+	    -lcore$(OCI_MAJOR_VERSION) \
+	    -lcommon$(OCI_MAJOR_VERSION) \
+	    -lgeneric$(OCI_MAJOR_VERSION) \
+	    -lclient$(OCI_MAJOR_VERSION)
 
 ifneq (,$(findstring NS_VERSION,$(NS_VERSION)))
 MODLIBS  +=  -lnsdb
@@ -67,13 +68,13 @@ endif
 include $(NSHOME)/include/Makefile.global
 
 # Tack on the oracle includes after Makefile.global stomps CFLAGS
-CFLAGS := \
+CFLAGS := -g \
     -I$(ORACLE_HOME)/rdbms/demo \
     -I$(ORACLE_HOME)/rdbms/public \
     -I$(ORACLE_HOME)/network/public \
     -I$(ORACLE_HOME)/plsql/public $(filter-out -Wconversion,$(CFLAGS))
 
-all: $(MOD) $(MODCASS)
+all: $(MOD) $(MODCASS) 
 
 $(MOD): $(OBJS)
 	$(RM) $@
