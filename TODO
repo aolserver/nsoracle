@@ -13,6 +13,7 @@ nsoracle 3.0 release:
     - Add batch error processing to array dml.
     - Add ability to execute multiple statements on a single db handle.
     - Add ability to use Oracle 9i's scrollable cursors.
+    - Add ability to use Oracle 9i's statement cache.
     - Improve handling of PL/SQL datatypes, if possible.
     - Replace exec_plsql and exec_plsql_bind with new plsql command.
     - Split OracleSelectObjCommand out. Currently its arraydml, dml, select,

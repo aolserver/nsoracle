@@ -1,3 +1,10 @@
+2005-02-25  Jeremy Collins <jeremy.collins@tclsource.org>
+
+    * nsoracle.c: Applied patch from Christopher Bowman 
+    <cbowman@wayport.net> that fixed several bugs including
+    a memory leak, and issues with the driver not properly
+    reconnecting to the database after a database shutdown.
+
 2004-02-14  Jeremy Collins <jeremy.collins@tclsource.org>
 
     * nsoracle.c, nsoracle.h: More code cleanup.  Added ability

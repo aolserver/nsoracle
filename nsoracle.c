@@ -2214,6 +2214,7 @@ OracleGetCols (Tcl_Interp *interp, int objc,
         OCIParam *param;
         char name[512];
         char *name1 = 0;
+        ub2 coltype;
         sb4 name1_size = 0;
 
         oci_status = OCIParamGet(connection->stmt,
@@ -2235,13 +2236,25 @@ OracleGetCols (Tcl_Interp *interp, int objc,
             return TCL_ERROR;
         }
 
+        oci_status = OCIAttrGet(param,
+                                OCI_DTYPE_PARAM,
+                                (oci_attribute_t *) &coltype,
+                                0,
+                                OCI_ATTR_DATA_TYPE, connection->err);
+        if (oci_error_p(lexpos(), dbh, "OCIAttrGet", 0, oci_status)) {
+            Ns_OracleFlush(dbh);
+            return TCL_ERROR;
+        }
+
         /* Oracle gives us back a pointer to a string that is not null-terminated
          * so we copy it into our local var and add a 0 at the end.
          */
-
         memcpy(name, name1, name1_size);
         name[name1_size] = 0;
         downcase(name);
+
+        Tcl_ListObjAppendElement(interp, 
+                Tcl_GetObjResult(interp), Tcl_NewIntObj(coltype));
 
         Tcl_ListObjAppendElement(interp, 
                 Tcl_GetObjResult(interp), Tcl_NewStringObj(name, name1_size));
@@ -2720,10 +2733,8 @@ NS_EXPORT int
 Ns_DbDriverInit (char *hdriver, char *config_path) 
 {
     int ns_status;
-    oci_status_t oci_status;
 
     /* slurp any nsd.ini configuration parameters first */
-
     if (!Ns_ConfigGetBool(config_path, "Debug", &debug_p))
         debug_p = DEFAULT_DEBUG;
 
@@ -2753,10 +2764,6 @@ Ns_DbDriverInit (char *hdriver, char *config_path)
 
     log(lexpos(), "entry (hdriver %p, config_path %s)", hdriver,
         nilp(config_path));
-
-    oci_status = OCIInitialize(OCI_THREADED | OCI_OBJECT, NULL, NULL, NULL, NULL);
-    if (oci_error_p(lexpos(), 0, "OCIInitialize", 0, oci_status))
-        return NS_ERROR;
 
     ns_status = Ns_DbRegisterDriver(hdriver, ora_procs);
     if (ns_status != NS_OK) {
@@ -2901,27 +2908,17 @@ Ns_OracleOpenDb (Ns_DbHandle *dbh)
      */
     dbh->connection = connection;
 
-    /*
-    oci_status = OCIInitialize(OCI_THREADED|OCI_SHARED, 
-                               NULL,
-                               Ns_OracleMalloc, 
-                               Ns_OracleRealloc,
-                               Ns_OracleFree);
-    */
-
-    /* environment; sets connection->env */
-    /* we ask for DEFAULT rather than NO_MUTEX because 
-       we're in a multi-threaded environment */
-    //oci_status = OCIEnvInit(&connection->env, OCI_DEFAULT, 0, NULL);
     oci_status = OCIEnvCreate(&connection->env,
-                              OCI_THREADED,
+                              OCI_ENV_NO_MUTEX|OCI_DEFAULT,
                               NULL,
                               Ns_OracleMalloc,
                               Ns_OracleRealloc,
                               Ns_OracleFree,
                               0, 0);
-    if (oci_error_p(lexpos(), dbh, "OCIEnvInit", 0, oci_status))
+    if (oci_error_p(lexpos(), NULL, "OCIEnvInit", 0, oci_status))
         return NS_ERROR;
+
+
 
     /* sets connection->err */
     oci_status = OCIHandleAlloc(connection->env,
@@ -3002,8 +2999,9 @@ Ns_OracleOpenDb (Ns_DbHandle *dbh)
     if (oci_error_p(lexpos(), dbh, "OCIAttrSet", 0, oci_status))
         return NS_ERROR;
 
-
     log(lexpos(), "(dbh %p); return NS_OK;", dbh);
+
+    dbh->connected = NS_TRUE;
 
     return NS_OK;
 }
@@ -3055,12 +3053,17 @@ Ns_OracleCloseDb (Ns_DbHandle *dbh)
     oci_error_p(lexpos(), dbh, "OCIHandleFree", 0, oci_status);
     connection->err = 0;
 
+    oci_status = OCIHandleFree(connection->auth, OCI_HTYPE_SESSION);
+    oci_error_p (lexpos (), dbh, "OCIHandleFree", 0, oci_status);
+    connection->auth = 0;
+
     oci_status = OCIHandleFree(connection->env, OCI_HTYPE_ENV);
     oci_error_p(lexpos(), dbh, "OCIHandleFree", 0, oci_status);
     connection->env = 0;
 
     Ns_Free(connection);
     dbh->connection = NULL;
+    dbh->connected = NS_FALSE;
 
     return NS_OK;
 }
@@ -3407,6 +3410,13 @@ Ns_OracleBindRow (Ns_DbHandle *dbh)
             fetchbuf->buf = Ns_Malloc(fetchbuf->buf_size);
             break;
 
+        case SQLT_DAT:
+            /* Wayport mod to allow NLS_DATE_FORMAT = YYYY-MM-DD HH24:MI:SS */
+            fetchbuf->size = 20;
+            fetchbuf->buf_size = fetchbuf->size + 8;
+            fetchbuf->buf = Ns_Malloc(fetchbuf->buf_size);
+            break;
+
         default:
             /* get the size */
             oci_status = OCIAttrGet(param,
@@ -3425,7 +3435,6 @@ Ns_OracleBindRow (Ns_DbHandle *dbh)
                more than Oracle says are necessary (for null
                termination) */
             fetchbuf->buf_size = fetchbuf->size + 8;
-            fetchbuf->buf = Ns_Malloc(fetchbuf->buf_size);
 
             if (fetchbuf->type == SQLT_BIN) {
                 fetchbuf->buf_size = fetchbuf->size * 2 + 8;
@@ -4216,7 +4225,10 @@ oci_error_p(char *file, int line, char *fn,
 
                 if (errorcode == 1041 || 
                     errorcode == 3113 || 
-                    errorcode == 12571) {
+                    errorcode == 12571 ||
+                    errorcode == 28 ||
+                    errorcode == 1012 ||
+                    errorcode == 24324) {
 
                     /* 3113 is 'end-of-file on communications channel', which
                      *      happens if the oracle process dies
@@ -4231,7 +4243,6 @@ oci_error_p(char *file, int line, char *fn,
                      */
                     Ns_OracleFlush(dbh);
                     Ns_OracleCloseDb(dbh);
-                    Ns_OracleOpenDb(dbh);
                 }
 
                 if (errorcode == 20 || errorcode == 1034) {
