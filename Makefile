@@ -12,9 +12,6 @@ else
 NSHOME ?= ../aolserver
 endif
 
-# Driver version.
-VERSION = 2.4
-
 #
 # Module name
 #
@@ -45,8 +42,7 @@ CFLAGS   = \
     -I$(ORACLE_HOME)/rdbms/demo \
     -I$(ORACLE_HOME)/rdbms/public \
     -I$(ORACLE_HOME)/network/public \
-    -I$(ORACLE_HOME)/plsql/public \
-    -DORA8_DRIVER_VERSION=\"$(VERSION)\"
+    -I$(ORACLE_HOME)/plsql/public 
 
 ########################################################################
 # Copied from Makefile.module because this module is a little more
@@ -54,7 +50,7 @@ CFLAGS   = \
 
 include $(NSHOME)/include/Makefile.global
 
-all: version $(MOD) $(MODCASS)
+all: $(MOD) $(MODCASS)
 
 # Override LIBS variable
 LIBS=
@@ -79,14 +75,11 @@ install: all
 	$(CP) $(MODCASS) $(INSTBIN)
 
 clean:
-	$(RM) $(OBJS) $(MOD) $(OBJSCASS) $(MODCASS) version
+	$(RM) $(OBJS) $(MOD) $(OBJSCASS) $(MODCASS)
 
 clobber: clean
 	$(RM) *.so *.o *.a *~
 
 distclean: clobber
 	$(RM) TAGS core
-
-version: Makefile
-	echo "$(VERSION)" > version
 

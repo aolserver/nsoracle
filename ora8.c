@@ -57,8 +57,11 @@
      conflicting).
 
 */
+/* Oracle 8 Call Interface */
+#include <oci.h>
 
 /* be sure to bump the version number if changes are made */
+#include "version.h"
 
 static char *ora_driver_version = "ArsDigita Oracle Driver version " ORA8_DRIVER_VERSION;
 static char *ora_driver_name = "Oracle8";
@@ -101,8 +104,6 @@ static char *ora_driver_name = "Oracle8";
 #include <sys/stat.h>
 
 
-/* Oracle 8 Call Interface */
-#include <oci.h>
 
 
 
@@ -336,6 +337,10 @@ static int debug_p = NS_FALSE;  /* should we print the verbose log messages? */
 static int max_string_log_length = 0;
 
 static int lob_buffer_size = 16384;
+
+/* prefetch parameters, if zero leave defaults*/
+static ub4 prefetch_rows = 0;
+static ub4 prefetch_memory = 0;
 
 /* default values for the configuration parameters */
 
@@ -916,6 +921,16 @@ Ns_DbDriverInit (char *hdriver, char *config_path)
   if (!Ns_ConfigGetInt (config_path, "LobBufferSize", &lob_buffer_size))
     lob_buffer_size = 16384;
   Ns_Log (Notice, "%s driver LobBufferSize = %d", hdriver, lob_buffer_size);
+
+
+  if (!Ns_ConfigGetInt (config_path, "PrefetchRows", &prefetch_rows))
+      prefetch_rows = 0;
+  Ns_Log (Notice, "%s driver PrefetchRows = %d", hdriver, prefetch_rows);
+
+  if (!Ns_ConfigGetInt (config_path, "PrefetchMemory", &prefetch_memory))
+      prefetch_memory = 0;
+  Ns_Log (Notice, "%s driver PrefetchMemory = %d", hdriver, prefetch_memory);
+
 
   log (lexpos (), "entry (hdriver %p, config_path %s)", hdriver, nilp (config_path));
   
@@ -1573,7 +1588,8 @@ free_fetch_buffers(ora_connection_t *connection)
 
 	  if (fetchbuf->array_values != NULL)
 	    {
-	      Ns_Free(fetchbuf->array_values);
+              /* allocated from Tcl_SplitList so Tcl_Free it */
+	      Tcl_Free((char *)fetchbuf->array_values);
 	      fetchbuf->array_values = NULL;
 	      fetchbuf->array_count = 0;
 	    }
@@ -1661,7 +1677,7 @@ long_get_data (dvoid *octxp,
   if (fetchbuf->fetch_length > fetchbuf->buf_size / 2)
     {
       fetchbuf->buf_size *= 2;
-      fetchbuf->buf = ns_realloc (fetchbuf->buf, fetchbuf->buf_size);
+      fetchbuf->buf = Ns_Realloc (fetchbuf->buf, fetchbuf->buf_size);
     }
   
   fetchbuf->piecewise_fetch_length = fetchbuf->buf_size - fetchbuf->fetch_length;
@@ -1840,7 +1856,7 @@ ora_bindrow (Ns_DbHandle *dbh)
 	  
 	  /* this might work if the rest of our LONG stuff worked */
 	case SQLT_LNG:
-          fetchbuf->buf_size = 1024;
+          fetchbuf->buf_size = lob_buffer_size;
           fetchbuf->buf = Ns_Malloc (fetchbuf->buf_size);
 	  break;
 	  
@@ -1923,24 +1939,15 @@ ora_bindrow (Ns_DbHandle *dbh)
                                        &fetchbuf->def,
                                        connection->err,
                                        i + 1,
-                                       fetchbuf->buf,
-                                       fetchbuf->buf_size,
-                                       SQLT_LNG,
+                                       0,
+                                       (sb4)SB4MAXVAL,
+                                       fetchbuf->type,
                                        &fetchbuf->is_null,
                                        &fetchbuf->fetch_length,
                                        0,
                                        OCI_DYNAMIC_FETCH);
           
           if (oci_error_p (lexpos (), dbh, "OCIDefineByPos", 0, oci_status))
-	    {
-	      flush_handle (dbh);
-	      return 0;
-	    }
-	  
-	  oci_status = OCIDefineDynamic (fetchbuf->def,
-					 connection->err,
-					 fetchbuf, long_get_data);
-          if (oci_error_p (lexpos (), dbh, "OCIDefineDynamic", 0, oci_status))
 	    {
 	      flush_handle (dbh);
 	      return 0;
@@ -2013,7 +2020,8 @@ ora_get_row (Ns_DbHandle *dbh, Ns_Set *row)
   oci_status_t oci_status;
   ora_connection_t *connection;
   int i;
-  
+  ub4 ret_len = 0;
+
   log (lexpos (), "entry (dbh %p, row %p)", dbh, row);
   
   if (! dbh || !row)
@@ -2049,7 +2057,10 @@ ora_get_row (Ns_DbHandle *dbh, Ns_Set *row)
 			     1,
 			     OCI_FETCH_NEXT,
 			     OCI_DEFAULT);
-  if (oci_status == OCI_NO_DATA)
+  if (oci_status == OCI_NEED_DATA) {
+      ; 
+  } 
+  else if (oci_status == OCI_NO_DATA)
     {
       /* we've reached beyond the last row of the select, so flush the
          statement and tell AOLserver that it isn't going to get
@@ -2142,6 +2153,8 @@ ora_get_row (Ns_DbHandle *dbh, Ns_Set *row)
 	case SQLT_LNG:
 	  /* this is broken for multi-part LONGs.  LONGs are being deprecated
 	   * by Oracle anyway, so no big loss
+           *
+           * Maybe fixed by davis@arsdigita.com
 	   */
 	  if (fetchbuf->is_null == -1)
 	    fetchbuf->buf[0] = 0;
@@ -2152,14 +2165,85 @@ ora_get_row (Ns_DbHandle *dbh, Ns_Set *row)
 	      return NS_ERROR;
 	    }
 	  else
-	    {
-	      fetchbuf->buf[fetchbuf->fetch_length] = 0;
-	    }
+          {
+              fetchbuf->buf[0] = 0;
+              fetchbuf->fetch_length = 0;
+              ret_len = 0;
+ 
+              log(lexpos(), "LONG start: buf_size=%d fetched=%d\n", fetchbuf->buf_size, fetchbuf->fetch_length);
+ 
+              do {
+                  dvoid *def;
+                  ub1 inoutp;
+                  ub1 piece;
+                  ub4 type;
+                  ub4 iterp;
+                  ub4 idxp;
+         
+                  fetchbuf->fetch_length += ret_len;                     
+                  if (fetchbuf->fetch_length > fetchbuf->buf_size / 2) {
+                      fetchbuf->buf_size *= 2;
+                      fetchbuf->buf = ns_realloc (fetchbuf->buf, fetchbuf->buf_size);
+                  }
+                  ret_len = fetchbuf->buf_size - fetchbuf->fetch_length;
+ 
+                  oci_status = OCIStmtGetPieceInfo(connection->stmt, 
+                                                   connection->err,
+                                                   (dvoid **)&fetchbuf->def,   
+                                                   &type, 
+                                                   &inoutp, 
+                                                   &iterp,    
+                                                   &idxp, 
+                                                   &piece);
+    
+                  if (oci_error_p (lexpos (), dbh, "OCIStmtGetPieceInfo", 0, oci_status)) {
+                      flush_handle (dbh);
+                      return NS_ERROR;
+                  }
+ 
+                  oci_status = OCIStmtSetPieceInfo(
+                      fetchbuf->def,   
+                      OCI_HTYPE_DEFINE,   
+                      connection->err, 
+                      (void *) (fetchbuf->buf + fetchbuf->fetch_length),
+                      &ret_len,
+                      piece,
+                      NULL, 
+                      NULL);
+ 
+                  if (oci_error_p (lexpos (), dbh, "OCIStmtGetPieceInfo", 0, oci_status)) {
+                      flush_handle (dbh);
+                      return NS_ERROR;
+                  }
+ 
+                  oci_status = OCIStmtFetch(connection->stmt, 
+                                            connection->err,
+                                            1, 
+                                            OCI_FETCH_NEXT,
+                                            OCI_DEFAULT);   
+ 
+                  log(lexpos(), "LONG: status=%d ret_len=%d buf_size=%d fetched=%d\n", oci_status, ret_len, fetchbuf->buf_size, fetchbuf->fetch_length);
+ 
+                  if (oci_status != OCI_NEED_DATA 
+                      && oci_error_p (lexpos (), dbh, "OCIStmtFetch", 0, oci_status)) {
+                      flush_handle (dbh);
+                      return NS_ERROR;
+                  }
+ 
+                  if (oci_status == OCI_NO_DATA)
+                      break;    
+    
+              } while (oci_status == OCI_SUCCESS_WITH_INFO ||    
+                       oci_status == OCI_NEED_DATA);   
+ 
+          }
+
+          fetchbuf->buf[fetchbuf->fetch_length] = 0;
+          log(lexpos(), "LONG done: status=%d buf_size=%d fetched=%d\n", oci_status, fetchbuf->buf_size, fetchbuf->fetch_length);
           
           Ns_SetPutValue (row, i, fetchbuf->buf);
 	  
 	  break;
-	  
 	  
 	default:
 	  /* add null termination and then do an ns_set put */
@@ -2172,8 +2256,8 @@ ora_get_row (Ns_DbHandle *dbh, Ns_Set *row)
 	      return NS_ERROR;
 	    }
 	  else
-	    fetchbuf->buf[fetchbuf->fetch_length] = 0;
-          
+            fetchbuf->buf[fetchbuf->fetch_length] = 0;
+
           Ns_SetPutValue (row, i, fetchbuf->buf);
 
 	  break;
@@ -2527,7 +2611,7 @@ ora_table_list (Ns_DString *pds, Ns_DbHandle *dbh, int system_tables_p)
 {
   oci_status_t oci_status;
   ora_connection_t *connection;
-  char *sql;
+  char *sql = 0;
   OCIStmt *stmt = NULL;
   
   OCIDefine *table_name_def;
@@ -3362,7 +3446,6 @@ ora_tcl_command (ClientData dummy, Tcl_Interp *interp, int argc, char *argv[])
                     }
                   flush_handle(dbh);
                   string_list_free_list(bind_variables);
-                  Tcl_Free((char *)argv);
                   return TCL_ERROR;
                 }
               value = argv[argv_base + index];
@@ -3386,7 +3469,6 @@ ora_tcl_command (ClientData dummy, Tcl_Interp *interp, int argc, char *argv[])
                                         "'", NULL);
                       flush_handle(dbh);
                       string_list_free_list(bind_variables);
-                      Tcl_Free((char *)argv);
                       return TCL_ERROR;
                     }
                 }
@@ -3402,6 +3484,7 @@ ora_tcl_command (ClientData dummy, Tcl_Interp *interp, int argc, char *argv[])
               strncpy(retbuf, value, EXEC_PLSQL_BUFFER_SIZE);
               fetchbuf->fetch_length = EXEC_PLSQL_BUFFER_SIZE;
               fetchbuf->is_null = 0;
+
             }
           else
             {
@@ -3414,7 +3497,7 @@ ora_tcl_command (ClientData dummy, Tcl_Interp *interp, int argc, char *argv[])
           if (dbh->verbose)
             Ns_Log(Notice, "bind variable '%s' = '%s'", var_p->string, value);
 
-          log(lexpos(), "ns_ora exec_plsql:  binding variable %s", var_p->string);
+          log(lexpos(), "ns_ora exec_plsql_bind:  binding variable %s", var_p->string);
 
           oci_status = OCIBindByName(connection->stmt,
                                      &fetchbuf->bind,
@@ -3595,11 +3678,42 @@ ora_tcl_command (ClientData dummy, Tcl_Interp *interp, int argc, char *argv[])
           flush_handle (dbh);
           return NS_ERROR;
         }
-      if (type == OCI_STMT_SELECT)
+      if (type == OCI_STMT_SELECT) {
         iters = 0;
-      else
+        if (prefetch_rows > 0) { 
+            /* Set prefetch rows attr for selects... */
+            oci_status = OCIAttrSet (connection->stmt,
+                                     OCI_HTYPE_STMT,
+                                     (dvoid *) &prefetch_rows,
+                                     0,
+                                     OCI_ATTR_PREFETCH_ROWS,
+                                     connection->err);
+            if (oci_error_p (lexpos (), dbh, "OCIAttrSet", query, oci_status))
+            {
+                Tcl_SetResult(interp, dbh->dsExceptionMsg.string, TCL_VOLATILE);
+                flush_handle (dbh);
+                return NS_ERROR;
+            }
+        }
+        if (prefetch_memory > 0) { 
+            /* Set prefetch rows attr for selects... */
+            oci_status = OCIAttrSet (connection->stmt,
+                                     OCI_HTYPE_STMT,
+                                     (dvoid *) &prefetch_memory,
+                                     0,
+                                     OCI_ATTR_PREFETCH_MEMORY,
+                                     connection->err);
+            if (oci_error_p (lexpos (), dbh, "OCIAttrSet", query, oci_status))
+            {
+                Tcl_SetResult(interp, dbh->dsExceptionMsg.string, TCL_VOLATILE);
+                flush_handle (dbh);
+                return NS_ERROR;
+            }
+        }
+      } else {
         iters = 1;
-
+      }
+      
       /* Check for statement type mismatch */
 
       if (type != OCI_STMT_SELECT && ! dml_p) {
@@ -4158,7 +4272,7 @@ stream_write_lob (Tcl_Interp *interp, Ns_DbHandle *dbh, int rowind,
   ub4   amtp = 0;
   ub4   piece = 0;
   ub4   remainder;            /* the number of bytes for the last piece */
-  int  fd;
+  int  fd = 0;
   int bytes_to_write, bytes_written;
   int status = STREAM_WRITE_LOB_ERROR;
   oci_status_t oci_status;
@@ -4508,7 +4622,7 @@ lob_dml_bind_cmd(Tcl_Interp *interp, int argc, char *argv[],
 		}
 	      flush_handle(dbh);
 	      string_list_free_list(bind_variables);
-	      Tcl_Free((char *)argv);
+	      Tcl_Free((char *)lob_argv);
 	      return TCL_ERROR;
 	    }
 	  value = argv[argv_base + index];
@@ -4522,7 +4636,7 @@ lob_dml_bind_cmd(Tcl_Interp *interp, int argc, char *argv[],
 				"'", NULL);
 	      flush_handle(dbh);
 	      string_list_free_list(bind_variables);
-	      Tcl_Free((char *)argv);
+	      Tcl_Free((char *)lob_argv);
 	      return TCL_ERROR;
 	    }
 	}
@@ -4581,7 +4695,7 @@ lob_dml_bind_cmd(Tcl_Interp *interp, int argc, char *argv[],
 	  if (tcl_error_p (lexpos (), interp, dbh, "OCIBindDynamic", query, oci_status))
 	    {
 	      flush_handle (dbh);
-	      Tcl_Free((char *)argv);
+	      Tcl_Free((char *)lob_argv);
 	      string_list_free_list(bind_variables);
 	      return TCL_ERROR;
 	    }

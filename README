@@ -125,3 +125,16 @@ What's New:
 	around mysterious ORA-24812 bug. Set parameter LobBufferSize in
 	ns/db/driver/ora to the desired buffer size.
 
+
+2.5: 
+        Fix spurious frees in exec_plsql_bind when there were
+          undefined bind varaibles.
+        Fix frees lob_dml_bind_cmd which should have freed lob_argv
+          rather than argv.
+        Fix free of fetchbuf->array_values (should use Tcl_Free when 
+          allocation is by Tcl_SplitList).
+        Added support for oracle LONGs of greater than 1024 bytes.
+        Added support for setting prefetchrows and prefetchmemory
+          to improve throughput on nonlocal oracle connections.
+        (by davis@arsdigita.com)
+
