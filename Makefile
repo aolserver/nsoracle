@@ -20,6 +20,11 @@ endif
 VER_ = $(subst .,_,$(VER))
 
 #
+# Module Pretty-name (yes, this will become important shortly)
+#
+MODNAME  =  nsoracle
+
+#
 # Module name
 #
 MOD      =  ora8.so
@@ -98,8 +103,8 @@ file-release:
 	@if [ "$$VER" = "" ]; then echo 1>&2 "VER must be set to version number!"; exit 1; fi
 	rm -rf work
 	mkdir work
-	cd work && cvs -d :pserver:anonymous@cvs.aolserver.sourceforge.net:/cvsroot/aolserver co -r v$(VER_) nsoracle
-	mv work/nsoracle work/nsoracle-$(VER)
-	( cd work && tar cvf - nsoracle-$(VER) ) | gzip -9 > nsoracle-$(VER).tar.gz
+	cd work && cvs -d :pserver:anonymous@cvs.aolserver.sourceforge.net:/cvsroot/aolserver co -r v$(VER_) $(MODNAME)
+	mv work/$(MODNAME) work/$(MODNAME)-$(VER)
+	( cd work && tar cvf - $(MODNAME)-$(VER) ) | gzip -9 > $(MODNAME)-$(VER).tar.gz
 	rm -rf work
 
