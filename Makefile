@@ -35,20 +35,19 @@ HDRS     =
 MODLIBS  =  -L$(ORACLE_HOME)/lib \
     -lclntsh -lcore8 -lcommon8 -lgeneric8 -lclient8
 
-#
-# Compiler flags
-#
-CFLAGS   = \
-    -I$(ORACLE_HOME)/rdbms/demo \
-    -I$(ORACLE_HOME)/rdbms/public \
-    -I$(ORACLE_HOME)/network/public \
-    -I$(ORACLE_HOME)/plsql/public 
-
 ########################################################################
 # Copied from Makefile.module because this module is a little more
 # complicated.
 
 include $(NSHOME)/include/Makefile.global
+
+# Tack on the oracle includes after Makefile.global stomps CFLAGS
+
+CFLAGS += \
+    -I$(ORACLE_HOME)/rdbms/demo \
+    -I$(ORACLE_HOME)/rdbms/public \
+    -I$(ORACLE_HOME)/network/public \
+    -I$(ORACLE_HOME)/plsql/public 
 
 all: $(MOD) $(MODCASS)
 
