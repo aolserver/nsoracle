@@ -39,10 +39,12 @@ MODLIBS  =  -L$(ORACLE_HOME)/lib \
 # Copied from Makefile.module because this module is a little more
 # complicated.
 
+# TODO: this should be possible to manage without maintaining a local copy of
+# Makefile.module
+
 include $(NSHOME)/include/Makefile.global
 
 # Tack on the oracle includes after Makefile.global stomps CFLAGS
-
 CFLAGS += \
     -I$(ORACLE_HOME)/rdbms/demo \
     -I$(ORACLE_HOME)/rdbms/public \
@@ -69,9 +71,9 @@ $(OBJSCASS): $(HDRS) ora8.c
 
 install: all
 	$(RM) $(INSTBIN)/$(MOD)
-	$(CP) $(MOD) $(INSTBIN)
+	$(INSTALL_SH) $(MOD) $(INSTBIN)/
 	$(RM) $(INSTBIN)/$(MODCASS)
-	$(CP) $(MODCASS) $(INSTBIN)
+	$(INSTALL_SH) $(MODCASS) $(INSTBIN)/
 
 clean:
 	$(RM) $(OBJS) $(MOD) $(OBJSCASS) $(MODCASS)
