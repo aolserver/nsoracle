@@ -1,3 +1,9 @@
+2004-02-14  Jeremy Collins <jeremy.collins@tclsource.org>
+
+    * nsoracle.c, nsoracle.h: More code cleanup.  Added ability
+    to handle "RETURNING INTO" clause in DML command.  Only works
+    with named binds which is what people should be using anyway.
+
 2004-02-12  Jeremy Collins <jeremy.collins@tclsource.org>
 
     * nsoracle.c, nsoracle.h: Modified new 'plsql' command to use
