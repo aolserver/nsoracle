@@ -3363,7 +3363,7 @@ Ns_OracleBindRow (Ns_DbHandle *dbh)
                all values out as strings, so we need more space. Empirically,
                it seems to return 41 characters when it does the NUMBER to STRING
                conversion. */
-            fetchbuf->size = 41;
+            fetchbuf->size = 81;
             fetchbuf->buf_size = fetchbuf->size + 8;
             fetchbuf->buf = Ns_Malloc(fetchbuf->buf_size);
             break;
