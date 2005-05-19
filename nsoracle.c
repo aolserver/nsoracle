@@ -58,7 +58,7 @@ DynamicBindIn(dvoid * ictxp,
               ub4 * alenp, ub1 * piecep, dvoid ** indpp)
 {
     fetch_buffer_t   *fbPtr = (fetch_buffer_t *) ictxp;
-    ora_connection_t *connection = fbPtr->connection;;
+    ora_connection_t *connection = fbPtr->connection;
     char             *value = NULL;
 
     if(fbPtr->name != NULL) {
@@ -360,7 +360,7 @@ OraclePLSQL (Tcl_Interp *interp, int objc,
         fetchbuf->type = -1;
 
         value = Tcl_GetVar(interp, var_p->string, 0);
-        fetchbuf->name = var_p->string;;
+        fetchbuf->name = var_p->string;
 
         if ( (value == NULL) && 
              (strcmp(var_p->string, ref) != 0) ) {
