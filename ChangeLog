@@ -1,3 +1,5 @@
+2005-05-19  Patrick O'Leary <pjaol@pjaol.com>
+     *nsoracle.c: changed a typo, no functional change
 2005-02-25  tag v2_8beta1
 
 2005-02-25  Jeremy Collins <jeremy.collins@tclsource.org>
