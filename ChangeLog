@@ -1,6 +1,8 @@
 2005-02-25  Jeremy Collins <jeremy.collins@tclsource.org>
-    * nsoracle.c: Applied patch from Bug 1435905.  Applied
-    patch from Bug 1435911.
+    * nsoracle.c: 
+    Applied patch from Bug 1435905.  
+    Applied patch from Bug 1435911. 
+    Applied patch from Bug 1435187.
 
 2005-05-19  Patrick O'Leary <pjaol@pjaol.com>
      * nsoracle.c: changed a typo, no functional change

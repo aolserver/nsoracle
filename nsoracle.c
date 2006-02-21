@@ -1335,18 +1335,20 @@ OracleSelect (Tcl_Interp *interp, int objc,
             
     string_list_free_list(bind_variables);
     if (connection->n_columns > 0) {
-        for (i = 0; i < connection->n_columns; i++) {
-            Ns_Free(connection->fetch_buffers[i].buf);
-            connection->fetch_buffers[i].buf = NULL;
-            Ns_Free(connection->fetch_buffers[i].array_values);
-            if (connection->fetch_buffers[i].array_values != 0) {
-                ns_ora_log(lexpos(), "*** Freeing buffer %p",
-                    connection->fetch_buffers[i].array_values);
+        if (connection->fetch_buffers != NULL) {
+            for (i = 0; i < connection->n_columns; i++) {
+                Ns_Free(connection->fetch_buffers[i].buf);
+                connection->fetch_buffers[i].buf = NULL;
+                Ns_Free(connection->fetch_buffers[i].array_values);
+                if (connection->fetch_buffers[i].array_values != 0) {
+                    ns_ora_log(lexpos(), "*** Freeing buffer %p",
+                        connection->fetch_buffers[i].array_values);
+                }
+                connection->fetch_buffers[i].array_values = NULL;
             }
-            connection->fetch_buffers[i].array_values = NULL;
+            Ns_Free(connection->fetch_buffers);
+            connection->fetch_buffers = 0;
         }
-        Ns_Free(connection->fetch_buffers);
-        connection->fetch_buffers = 0;
     }
 
     if (oci_error_p
