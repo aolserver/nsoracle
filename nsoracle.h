@@ -235,12 +235,12 @@ enum {
 };
 
 /* Utility functions */
-static void log(char *file, int line, char *fn, char *fmt, ...);
-static void error(char *file, int line, char *fn, char *fmt, ...);
-static int oci_error_p(char *file, int line, char *fn,
+static void ns_ora_log(const char *file, int line, const char *fn, char *fmt, ...);
+static void error(const char *file, int line, const char *fn, char *fmt, ...);
+static int oci_error_p(const char *file, int line, const char *fn,
                        Ns_DbHandle * dbh, char *ocifn, char *query,
                        oci_status_t oci_status);
-static int tcl_error_p(char *file, int line, char *fn, Tcl_Interp * interp,
+static int tcl_error_p(const char *file, int line, const char *fn, Tcl_Interp * interp,
         Ns_DbHandle * dbh, char *ocifn, char *query,
         oci_status_t oci_status);
 static void downcase(char *s);

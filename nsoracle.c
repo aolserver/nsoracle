@@ -95,7 +95,7 @@ DynamicBindOut (dvoid * ctxp, OCIBind * bindp,
 {
     fetch_buffer_t   *fetchbuf = (fetch_buffer_t *) ctxp;
 
-    log(lexpos(), "entry (dbh %p; iter %d, index %d)", ctxp, iter, index);
+    ns_ora_log(lexpos(), "entry (dbh %p; iter %d, index %d)", ctxp, iter, index);
 
     if (iter != 0) {
         error(lexpos(), "iter != 0");
@@ -115,7 +115,7 @@ DynamicBindOut (dvoid * ctxp, OCIBind * bindp,
 
     fetchbuf->piecewise_fetch_length = fetchbuf->buf_size - fetchbuf->fetch_length;
 
-    log (lexpos (), "%d, %d, %d",
+    ns_ora_log (lexpos (), "%d, %d, %d",
         fetchbuf->buf_size,
         fetchbuf->fetch_length,
         fetchbuf->piecewise_fetch_length);
@@ -725,7 +725,7 @@ OracleExecPLSQLBind (Tcl_Interp *interp, int objc,
     bind_variables = parse_bind_variables(query);
     connection->n_columns = string_list_len(bind_variables);
       
-    log(lexpos(), "%d bind variables", connection->n_columns);
+    ns_ora_log(lexpos(), "%d bind variables", connection->n_columns);
 
     malloc_fetch_buffers (connection);
 
@@ -808,7 +808,7 @@ OracleExecPLSQLBind (Tcl_Interp *interp, int objc,
             Ns_Log(Notice, "bind variable '%s' = '%s'", var_p->string, value);
         }
 
-        log(lexpos(), "ns_ora exec_plsql_bind:  binding variable %s", 
+        ns_ora_log(lexpos(), "ns_ora exec_plsql_bind:  binding variable %s", 
                 var_p->string);
 
         oci_status = OCIBindByName(connection->stmt,
@@ -1086,7 +1086,7 @@ OracleSelect (Tcl_Interp *interp, int objc,
     bind_variables = parse_bind_variables(query);
     connection->n_columns = string_list_len(bind_variables);
 
-    log(lexpos(), "%d bind variables", connection->n_columns);
+    ns_ora_log(lexpos(), "%d bind variables", connection->n_columns);
 
     if (connection->n_columns > 0) {
         malloc_fetch_buffers(connection);
@@ -1231,7 +1231,7 @@ OracleSelect (Tcl_Interp *interp, int objc,
                     value);
         }
 
-        log(lexpos(), "ns_ora dml:  binding variable %s", var_p->string);
+        ns_ora_log(lexpos(), "ns_ora dml:  binding variable %s", var_p->string);
 
         if (array_p || dml_p) {
             oci_status = OCIBindByName(connection->stmt,
@@ -1303,7 +1303,7 @@ OracleSelect (Tcl_Interp *interp, int objc,
 
     }
 
-    log(lexpos(), "ns_ora dml:  executing statement %s", nilp(query));
+    ns_ora_log(lexpos(), "ns_ora dml:  executing statement %s", nilp(query));
 
     oci_status = OCIStmtExecute(connection->svc,
                                 connection->stmt,
@@ -1340,7 +1340,7 @@ OracleSelect (Tcl_Interp *interp, int objc,
             connection->fetch_buffers[i].buf = NULL;
             Ns_Free(connection->fetch_buffers[i].array_values);
             if (connection->fetch_buffers[i].array_values != 0) {
-                log(lexpos(), "*** Freeing buffer %p",
+                ns_ora_log(lexpos(), "*** Freeing buffer %p",
                     connection->fetch_buffers[i].array_values);
             }
             connection->fetch_buffers[i].array_values = NULL;
@@ -1374,7 +1374,7 @@ OracleSelect (Tcl_Interp *interp, int objc,
         Ns_Set *setPtr;
         int dynamic_p = 0;
 
-        log(lexpos(), "ns_ora dml:  doing bind for select");
+        ns_ora_log(lexpos(), "ns_ora dml:  doing bind for select");
         Ns_SetTrunc(dbh->row, 0);
         setPtr = Ns_OracleBindRow(dbh);
 
@@ -1429,7 +1429,7 @@ static Ns_Set *
 Oracle0or1Row (Tcl_Interp *interp, Ns_DbHandle *handle, 
                Ns_Set *row, int *nrows)
 {
-    log(lexpos(), "entry");
+    ns_ora_log(lexpos(), "entry");
 
     if (row != NULL) {
         if (Ns_OracleGetRow(handle, row) == NS_END_DATA) {
@@ -1759,7 +1759,7 @@ OracleLobDMLBind (Tcl_Interp *interp, int objc,
 
     connection->n_columns = string_list_len(bind_variables);
 
-    log(lexpos(), "%d bind variables", connection->n_columns);
+    ns_ora_log(lexpos(), "%d bind variables", connection->n_columns);
 
     malloc_fetch_buffers(connection);
 
@@ -1816,13 +1816,13 @@ OracleLobDMLBind (Tcl_Interp *interp, int objc,
             Ns_Log(Notice, "bind variable '%s' = '%s'", var_p->string,
                    value);
 
-        log(lexpos(), "ns_ora clob_dml:  binding variable %s",
+        ns_ora_log(lexpos(), "ns_ora clob_dml:  binding variable %s",
             var_p->string);
 
         for (lob_i = 0; lob_i < lob_argc; lob_i++) {
             if (strcmp(lob_argv[lob_i], var_p->string) == 0) {
                 fetchbuf->is_lob = 1;
-                log(lexpos(), "bind variable %s is a lob", var_p->string);
+                ns_ora_log(lexpos(), "bind variable %s is a lob", var_p->string);
                 break;
             }
         }
@@ -1890,7 +1890,7 @@ OracleLobDMLBind (Tcl_Interp *interp, int objc,
         ub4             length = -1;
 
         if (!fetchbuf->is_lob) {
-            log(lexpos(), "column %d is not a lob", i);
+            ns_ora_log(lexpos(), "column %d is not a lob", i);
             continue;
         }
 
@@ -1927,7 +1927,7 @@ OracleLobDMLBind (Tcl_Interp *interp, int objc,
                 continue;
             }
 
-            log(lexpos(), "using lob %x", fetchbuf->lobs[k]);
+            ns_ora_log(lexpos(), "using lob %x", fetchbuf->lobs[k]);
             oci_status = OCILobWrite(connection->svc,
                                      connection->err,
                                      fetchbuf->lobs[k],
@@ -2763,7 +2763,7 @@ Ns_DbDriverInit (char *hdriver, char *config_path)
            prefetch_memory);
 
 
-    log(lexpos(), "entry (hdriver %p, config_path %s)", hdriver,
+    ns_ora_log(lexpos(), "entry (hdriver %p, config_path %s)", hdriver,
         nilp(config_path));
 
     ns_status = Ns_DbRegisterDriver(hdriver, ora_procs);
@@ -2781,7 +2781,7 @@ Ns_DbDriverInit (char *hdriver, char *config_path)
            "    This Oracle Driver is a reduced-functionality Cassandracle driver");
 #endif
 
-    log(lexpos(), "driver `%s' loaded.", nilp(ora_driver_name));
+    ns_ora_log(lexpos(), "driver `%s' loaded.", nilp(ora_driver_name));
 
     return NS_OK;
 }
@@ -2810,7 +2810,7 @@ Ns_OracleInterpInit (Tcl_Interp *interp, void *dummy)
 static int 
 Ns_OracleServerInit(char *hserver, char *hmodule, char *hdriver)
 {
-    log(lexpos(), "entry (%s, %s, %s)", nilp(hserver), nilp(hmodule),
+    ns_ora_log(lexpos(), "entry (%s, %s, %s)", nilp(hserver), nilp(hmodule),
         nilp(hdriver));
 
     return Ns_TclInitInterps(hserver, Ns_OracleInterpInit, NULL);
@@ -2828,7 +2828,7 @@ Ns_OracleServerInit(char *hserver, char *hmodule, char *hdriver)
 static char *
 Ns_OracleName (Ns_DbHandle *dummy) 
 {
-    log(lexpos(), "entry (dummy %p)", dummy);
+    ns_ora_log(lexpos(), "entry (dummy %p)", dummy);
 
     return ora_driver_name;
 }
@@ -2848,7 +2848,7 @@ Ns_OracleName (Ns_DbHandle *dummy)
 static char *
 Ns_OracleDbType (Ns_DbHandle *dummy) 
 {
-    log(lexpos(), "entry (dummy %p)", dummy);
+    ns_ora_log(lexpos(), "entry (dummy %p)", dummy);
 
     return ora_driver_name;
 }
@@ -2870,7 +2870,7 @@ Ns_OracleOpenDb (Ns_DbHandle *dbh)
     oci_status_t oci_status;
     ora_connection_t *connection;
 
-    log(lexpos(), "entry (dbh %p)", dbh);
+    ns_ora_log(lexpos(), "entry (dbh %p)", dbh);
 
     if (!dbh) {
         error(lexpos(), "invalid args.");
@@ -3000,7 +3000,7 @@ Ns_OracleOpenDb (Ns_DbHandle *dbh)
     if (oci_error_p(lexpos(), dbh, "OCIAttrSet", 0, oci_status))
         return NS_ERROR;
 
-    log(lexpos(), "(dbh %p); return NS_OK;", dbh);
+    ns_ora_log(lexpos(), "(dbh %p); return NS_OK;", dbh);
 
     dbh->connected = NS_TRUE;
 
@@ -3024,7 +3024,7 @@ Ns_OracleCloseDb (Ns_DbHandle *dbh)
     oci_status_t oci_status;
     ora_connection_t *connection;
 
-    log(lexpos(), "entry (dbh %p)", dbh);
+    ns_ora_log(lexpos(), "entry (dbh %p)", dbh);
 
     if (!dbh) {
         error(lexpos(), "invalid args.");
@@ -3085,7 +3085,7 @@ Ns_OracleSelect (Ns_DbHandle *dbh, char *sql)
 {
     int ns_status;
 
-    log(lexpos(), "entry (dbh %p, sql %s)", dbh, nilp(sql));
+    ns_ora_log(lexpos(), "entry (dbh %p, sql %s)", dbh, nilp(sql));
 
     if (!dbh || !sql) {
         error(lexpos(), "invalid args.");
@@ -3145,8 +3145,8 @@ Ns_OracleExec (Ns_DbHandle *dbh, char *sql)
     ub4 iters;
     ub2 type;
 
-    log(lexpos(), "generate simple message");
-    log(lexpos(), "entry (dbh %p, sql %s)", dbh, nilp(sql));
+    ns_ora_log(lexpos(), "generate simple message");
+    ns_ora_log(lexpos(), "entry (dbh %p, sql %s)", dbh, nilp(sql));
 
     if (!dbh || !sql) {
         error(lexpos(), "invalid args.");
@@ -3252,7 +3252,7 @@ Ns_OracleExec (Ns_DbHandle *dbh, char *sql)
         return NS_ERROR;
     }
 
-    log(lexpos(), "query type `%d'", type);
+    ns_ora_log(lexpos(), "query type `%d'", type);
 
     if (type == OCI_STMT_SELECT)
         return NS_ROWS;
@@ -3280,7 +3280,7 @@ Ns_OracleBindRow (Ns_DbHandle *dbh)
     Ns_Set *row = 0;
     int i;
 
-    log(lexpos(), "entry (dbh %p)", dbh);
+    ns_ora_log(lexpos(), "entry (dbh %p)", dbh);
 
     if (!dbh) {
         error(lexpos(), "invalid args.");
@@ -3316,7 +3316,7 @@ Ns_OracleBindRow (Ns_DbHandle *dbh)
         return 0;
     }
 
-    log(lexpos(), "n_columns: %d", connection->n_columns);
+    ns_ora_log(lexpos(), "n_columns: %d", connection->n_columns);
 
     /* allocate N fetch buffers, this proc pulls N from connection->n_columns */
     malloc_fetch_buffers(connection);
@@ -3364,7 +3364,7 @@ Ns_OracleBindRow (Ns_DbHandle *dbh)
            Oracle shop */
         downcase(name);
 
-        log(lexpos(), "name %d `%s'", name1_size, name);
+        ns_ora_log(lexpos(), "name %d `%s'", name1_size, name);
         Ns_SetPut(row, name, 0);
 
         /* get the column type */
@@ -3377,7 +3377,7 @@ Ns_OracleBindRow (Ns_DbHandle *dbh)
             return 0;
         }
 
-        log(lexpos(), "column `%s' type `%d'", name, fetchbuf->type);
+        ns_ora_log(lexpos(), "column `%s' type `%d'", name, fetchbuf->type);
 
         switch (fetchbuf->type) {
             /* we handle LOBs in the loop below */
@@ -3430,7 +3430,7 @@ Ns_OracleBindRow (Ns_DbHandle *dbh)
                 return 0;
             }
 
-            log(lexpos(), "column `%s' size `%d'", name, fetchbuf->size);
+            ns_ora_log(lexpos(), "column `%s' size `%d'", name, fetchbuf->size);
 
             /* this is the important part, we allocate buf to be 8 bytes
                more than Oracle says are necessary (for null
@@ -3512,7 +3512,7 @@ Ns_OracleBindRow (Ns_DbHandle *dbh)
                 return 0;
             }
 
-            log(lexpos(), "`OCIDefineDynamic ()' success");
+            ns_ora_log(lexpos(), "`OCIDefineDynamic ()' success");
             break;
 
         default:
@@ -3558,7 +3558,7 @@ Ns_OracleGetRow (Ns_DbHandle *dbh, Ns_Set *row)
     int i;
     ub4 ret_len = 0;
 
-    log(lexpos(), "entry (dbh %p, row %p)", dbh, row);
+    ns_ora_log(lexpos(), "entry (dbh %p, row %p)", dbh, row);
 
     if (!dbh || !row) {
         error(lexpos(), "invalid args.");
@@ -3595,7 +3595,7 @@ Ns_OracleGetRow (Ns_DbHandle *dbh, Ns_Set *row)
          *  statement and tell AOLserver that it isn't going to get
          *  anything more out of us. 
          */
-        log(lexpos(), "return NS_END_DATA;");
+        ns_ora_log(lexpos(), "return NS_END_DATA;");
 
         if (Ns_OracleFlush(dbh) != NS_OK)
             return NS_ERROR;
@@ -3688,7 +3688,7 @@ Ns_OracleGetRow (Ns_DbHandle *dbh, Ns_Set *row)
                 fetchbuf->fetch_length = 0;
                 ret_len = 0;
 
-                log(lexpos(), "LONG start: buf_size=%d fetched=%d\n",
+                ns_ora_log(lexpos(), "LONG start: buf_size=%d fetched=%d\n",
                     fetchbuf->buf_size, fetchbuf->fetch_length);
 
                 do {
@@ -3743,7 +3743,7 @@ Ns_OracleGetRow (Ns_DbHandle *dbh, Ns_Set *row)
                                               1,
                                               OCI_FETCH_NEXT, OCI_DEFAULT);
 
-                    log(lexpos(),
+                    ns_ora_log(lexpos(),
                         "LONG: status=%d ret_len=%d buf_size=%d fetched=%d\n",
                         oci_status, ret_len, fetchbuf->buf_size,
                         fetchbuf->fetch_length);
@@ -3764,7 +3764,7 @@ Ns_OracleGetRow (Ns_DbHandle *dbh, Ns_Set *row)
             }
 
             fetchbuf->buf[fetchbuf->fetch_length] = 0;
-            log(lexpos(), "LONG done: status=%d buf_size=%d fetched=%d\n",
+            ns_ora_log(lexpos(), "LONG done: status=%d buf_size=%d fetched=%d\n",
                 oci_status, fetchbuf->buf_size, fetchbuf->fetch_length);
 
             Ns_SetPutValue(row, i, fetchbuf->buf);
@@ -3810,7 +3810,7 @@ Ns_OracleFlush (Ns_DbHandle *dbh)
     oci_status_t      oci_status;
     int i;
 
-    log(lexpos(), "entry (dbh %p, row %p)", dbh, 0);
+    ns_ora_log(lexpos(), "entry (dbh %p, row %p)", dbh, 0);
 
     if (dbh == 0) {
         error(lexpos(), "invalid args, `NULL' database handle");
@@ -3837,7 +3837,7 @@ Ns_OracleFlush (Ns_DbHandle *dbh)
         for (i = 0; i < connection->n_columns; i++) {
             fetch_buffer_t *fetchbuf = &connection->fetch_buffers[i];
 
-            log(lexpos(), "fetchbuf %d, %p, %d, %p, %p, %p", i, fetchbuf,
+            ns_ora_log(lexpos(), "fetchbuf %d, %p, %d, %p, %p, %p", i, fetchbuf,
                 fetchbuf->type, fetchbuf->lob, fetchbuf->buf,
                 fetchbuf->lobs);
 
@@ -3891,7 +3891,7 @@ Ns_OracleResetHandle (Ns_DbHandle *dbh)
     oci_status_t oci_status;
     ora_connection_t *connection;
 
-    log(lexpos(), "entry (dbh %p)", dbh);
+    ns_ora_log(lexpos(), "entry (dbh %p)", dbh);
 
     if (!dbh) {
         error(lexpos(), "invalid args.");
@@ -4153,7 +4153,7 @@ static int allow_sql_p(Ns_DbHandle * dbh, char *sql, int display_sql_p)
    each fetch of a row 
 */
 static int
-oci_error_p(char *file, int line, char *fn,
+oci_error_p(const char *file, int line, const char *fn,
             Ns_DbHandle * dbh, char *ocifn, char *query,
             oci_status_t oci_status)
 {
@@ -4310,7 +4310,7 @@ oci_error_p(char *file, int line, char *fn,
    tells the Tcl interpreter about it
  */
 static int
-tcl_error_p(char *file, int line, char *fn,
+tcl_error_p(const char *file, int line, const char *fn,
             Tcl_Interp * interp,
             Ns_DbHandle * dbh, char *ocifn, char *query,
             oci_status_t oci_status)
@@ -4425,7 +4425,7 @@ tcl_error_p(char *file, int line, char *fn,
  * Oracle unhappiness.
  */
 static void 
-error(char *file, int line, char *fn, char *fmt, ...)
+error(const char *file, int line, const char *fn, char *fmt, ...)
 {
     char *buf1;
     char *buf;
@@ -4452,7 +4452,7 @@ error(char *file, int line, char *fn, char *fmt, ...)
  *  debug in the [ns/db/driver/drivername] section of your nsd.ini
  */
 static void 
-log(char *file, int line, char *fn, char *fmt, ...)
+ns_ora_log(const char *file, int line, const char *fn, char *fmt, ...)
 {
     char *buf1;
     char *buf;
@@ -4605,19 +4605,19 @@ handle_builtins(Ns_DbHandle * dbh, char *sql)
     oci_status_t oci_status;
     ora_connection_t *connection;
 
-    log(lexpos(), "entry (dbh %p, sql %s)", dbh, nilp(sql));
+    ns_ora_log(lexpos(), "entry (dbh %p, sql %s)", dbh, nilp(sql));
 
     /* args should be correct */
     connection = dbh->connection;
 
     if (!strcasecmp(sql, "begin transaction")) {
-        log(lexpos(), "builtin `begin transaction`");
+        ns_ora_log(lexpos(), "builtin `begin transaction`");
 
         connection->mode = transaction;
 
         return NS_DML;
     } else if (!strcasecmp(sql, "end transaction")) {
-        log(lexpos(), "builtin `end transaction`");
+        ns_ora_log(lexpos(), "builtin `end transaction`");
 
         oci_status = OCITransCommit(connection->svc,
                                     connection->err, OCI_DEFAULT);
@@ -4629,7 +4629,7 @@ handle_builtins(Ns_DbHandle * dbh, char *sql)
         connection->mode = autocommit;
         return NS_DML;
     } else if (!strcasecmp(sql, "abort transaction")) {
-        log(lexpos(), "builtin `abort transaction`");
+        ns_ora_log(lexpos(), "builtin `abort transaction`");
 
         oci_status = OCITransRollback(connection->svc,
                                       connection->err, OCI_DEFAULT);
@@ -4688,7 +4688,7 @@ no_data(dvoid * ctxp, OCIBind * bindp,
         ub4 iter, ub4 index, dvoid ** bufpp, ub4 * alenpp, ub1 * piecep,
         dvoid ** indpp)
 {
-    log(lexpos(), "entry");
+    ns_ora_log(lexpos(), "entry");
 
     *bufpp = (dvoid *) 0;
     *alenpp = 0;
@@ -4736,7 +4736,7 @@ get_data(dvoid * ctxp, OCIBind * bindp,
     oci_status_t      oci_status;
     int               i;
 
-    log(lexpos(), "entry (dbh %p; iter %d, index %d)", ctxp, iter, index);
+    ns_ora_log(lexpos(), "entry (dbh %p; iter %d, index %d)", ctxp, iter, index);
 
     if (iter != 0) {
         error(lexpos(), "iter != 0");
@@ -4756,7 +4756,7 @@ get_data(dvoid * ctxp, OCIBind * bindp,
         if (oci_error_p(lexpos(), dbh, "OCIAttrGet", 0, oci_status))
             return NS_ERROR;
 
-        log(lexpos(), "n_rows %d", buf->n_rows);
+        ns_ora_log(lexpos(), "n_rows %d", buf->n_rows);
 
         buf->lobs = Ns_Malloc(buf->n_rows * sizeof *buf->lobs);
 
@@ -4836,7 +4836,7 @@ stream_read_lob(Tcl_Interp * interp, Ns_DbHandle * dbh, int rowind,
 
     remainder = amtp = filelen;
 
-    log(lexpos(), "to do streamed write lob, amount = %d", (int) filelen);
+    ns_ora_log(lexpos(), "to do streamed write lob, amount = %d", (int) filelen);
 
     oci_status =
         OCILobGetLength(connection->svc, connection->err, lobl, &loblen);
@@ -4846,7 +4846,7 @@ stream_read_lob(Tcl_Interp * interp, Ns_DbHandle * dbh, int rowind,
         goto bailout;
 
 
-    log(lexpos(), "before stream write, lob length is %d", (int) loblen);
+    ns_ora_log(lexpos(), "before stream write, lob length is %d", (int) loblen);
 
     if (filelen > lob_buffer_size)
         nbytes = lob_buffer_size;
@@ -4868,7 +4868,7 @@ stream_read_lob(Tcl_Interp * interp, Ns_DbHandle * dbh, int rowind,
 
     if (remainder == 0) {       /* exactly one piece in the file */
         if (readlen > 0) {      /* if no bytes, bypass the LobWrite to insert a NULL */
-            log(lexpos(), "only one piece, no need for stream write");
+            ns_ora_log(lexpos(), "only one piece, no need for stream write");
             oci_status = OCILobWrite(connection->svc,
                                      connection->err,
                                      lobl,
@@ -4953,7 +4953,7 @@ stream_read_lob(Tcl_Interp * interp, Ns_DbHandle * dbh, int rowind,
     close(fd);
 
     if (status != NS_OK && connection->mode == transaction) {
-        log(lexpos(), "error writing lob.  rolling back transaction");
+        ns_ora_log(lexpos(), "error writing lob.  rolling back transaction");
 
         oci_status = OCITransRollback(connection->svc,
                                       connection->err, OCI_DEFAULT);
@@ -4972,7 +4972,7 @@ stream_actually_write(int fd, Ns_Conn * conn, void *bufp, int length,
 {
     int bytes_written = 0;
 
-    log(lexpos(), "entry (%d, %d, %d)", fd, length, to_conn_p);
+    ns_ora_log(lexpos(), "entry (%d, %d, %d)", fd, length, to_conn_p);
 
     if (to_conn_p) {
         if (Ns_WriteConn(conn, bufp, length) == NS_OK) {
@@ -4984,7 +4984,7 @@ stream_actually_write(int fd, Ns_Conn * conn, void *bufp, int length,
         bytes_written = write(fd, bufp, length);
     }
 
-    log(lexpos(), "exit (%d, %d, %d)", bytes_written, fd, length,
+    ns_ora_log(lexpos(), "exit (%d, %d, %d)", bytes_written, fd, length,
         to_conn_p);
 
     return bytes_written;
@@ -5019,7 +5019,7 @@ stream_write_lob(Tcl_Interp * interp, Ns_DbHandle * dbh, int rowind,
         path = "to connection";
     }
 
-    log(lexpos(), "entry (path %s)", path);
+    ns_ora_log(lexpos(), "entry (path %s)", path);
 
     if (to_conn_p) {
         conn = Ns_TclGetConn(interp);
@@ -5053,7 +5053,7 @@ stream_write_lob(Tcl_Interp * interp, Ns_DbHandle * dbh, int rowind,
 
     amtp = loblen;
 
-    log(lexpos(), "loblen %d", loblen);
+    ns_ora_log(lexpos(), "loblen %d", loblen);
 
     bufp = (ub1 *) Ns_Malloc(lob_buffer_size);
     memset((void *) bufp, (int) '\0', (size_t) lob_buffer_size);
@@ -5070,7 +5070,7 @@ stream_write_lob(Tcl_Interp * interp, Ns_DbHandle * dbh, int rowind,
 
     switch (oci_status) {
     case OCI_SUCCESS:          /* only one piece */
-        log(lexpos(), "stream read %d'th piece\n", (int) (++piece));
+        ns_ora_log(lexpos(), "stream read %d'th piece\n", (int) (++piece));
 
         bytes_written =
             stream_actually_write(fd, conn, bufp, loblen, to_conn_p);
@@ -5155,7 +5155,7 @@ stream_write_lob(Tcl_Interp * interp, Ns_DbHandle * dbh, int rowind,
 
 
             /* the amount read returned is undefined for FIRST, NEXT pieces */
-            log(lexpos(), "stream read %d'th piece, atmp = %d",
+            ns_ora_log(lexpos(), "stream read %d'th piece, atmp = %d",
                 (int) (++piece), (int) amtp);
 
             if (remainder < lob_buffer_size) {  /* last piece not a full buffer piece */
@@ -5245,7 +5245,7 @@ ora_get_table_info(Ns_DbHandle * dbh, char *table) {
     int i;
     sb4 n_columns;
 
-    log(lexpos(), "entry (dbh %p, table %s)", dbh, nilp(table));
+    ns_ora_log(lexpos(), "entry (dbh %p, table %s)", dbh, nilp(table));
 
     if (!dbh || !table) {
         error(lexpos(), "invalid args.");
@@ -5287,7 +5287,7 @@ ora_get_table_info(Ns_DbHandle * dbh, char *table) {
     if (oci_error_p(lexpos(), dbh, "OCIAttrGet", sql, oci_status))
         return 0;
 
-    log(lexpos(), "Starting columns");
+    ns_ora_log(lexpos(), "Starting columns");
 
     for (i = 0; i < n_columns; i++) {
         OCIParam *param;
@@ -5318,7 +5318,7 @@ ora_get_table_info(Ns_DbHandle * dbh, char *table) {
         if (oci_error_p(lexpos(), dbh, "OCIAttrGet", sql, oci_status))
             return 0;
 
-        log(lexpos(), "column name %s", name1);
+        ns_ora_log(lexpos(), "column name %s", name1);
         memcpy(name, name1, name1_size);
         name[name1_size] = 0;
         downcase(name);
@@ -5337,7 +5337,7 @@ ora_get_table_info(Ns_DbHandle * dbh, char *table) {
             break;
 
         case SQLT_NUM:
-            log(lexpos(), "numeric type");
+            ns_ora_log(lexpos(), "numeric type");
             Ns_SetPut(cinfo, "type", "numeric");
 
             /* for numeric type we get precision and scale */
@@ -5352,7 +5352,7 @@ ora_get_table_info(Ns_DbHandle * dbh, char *table) {
             if (oci_error_p(lexpos(), dbh, "OCIAttrGet", sql, oci_status))
                 return 0;
 
-            log(lexpos(), "precision %d", precision);
+            ns_ora_log(lexpos(), "precision %d", precision);
             snprintf(sbuf, SBUF_BUFFER_SIZE, "%d", (int) precision);
             Ns_SetPut(cinfo, "precision", sbuf);
 
@@ -5363,7 +5363,7 @@ ora_get_table_info(Ns_DbHandle * dbh, char *table) {
             if (oci_error_p(lexpos(), dbh, "OCIAttrGet", sql, oci_status))
                 return 0;
 
-            log(lexpos(), "scale %d", scale);
+            ns_ora_log(lexpos(), "scale %d", scale);
             snprintf(sbuf, SBUF_BUFFER_SIZE, "%d", (int) scale);
             Ns_SetPut(cinfo, "scale", sbuf);
 
@@ -5394,7 +5394,7 @@ ora_get_table_info(Ns_DbHandle * dbh, char *table) {
             break;
         }
 
-        log(lexpos(), "asking for size");
+        ns_ora_log(lexpos(), "asking for size");
 
         /* Now lets ask for the size */
         oci_status = OCIAttrGet(param,
@@ -5438,10 +5438,10 @@ ora_table_list(Ns_DString * pds, Ns_DbHandle * dbh, int system_tables_p)
 
     char *result = NULL;
 
-    log(lexpos(), "entry (pds %p, dbh %p, system_tables_p %d)",
+    ns_ora_log(lexpos(), "entry (pds %p, dbh %p, system_tables_p %d)",
         pds, dbh, system_tables_p);
 
-    log(lexpos(), "user: %s", nilp(dbh->user));
+    ns_ora_log(lexpos(), "user: %s", nilp(dbh->user));
 
     if (!pds || !dbh) {
         error(lexpos(), "invalid args.");
@@ -5536,9 +5536,9 @@ ora_table_list(Ns_DString * pds, Ns_DbHandle * dbh, int system_tables_p)
                           table_name_fetch_length + 1);
 
         if (system_tables_p)
-            log(lexpos(), "table: `%s.%s'", owner_buf, table_name_buf);
+            ns_ora_log(lexpos(), "table: `%s.%s'", owner_buf, table_name_buf);
         else
-            log(lexpos(), "table: `%s'", table_name_buf);
+            ns_ora_log(lexpos(), "table: `%s'", table_name_buf);
     }
 
 
@@ -5565,7 +5565,7 @@ ora_table_list(Ns_DString * pds, Ns_DbHandle * dbh, int system_tables_p)
 static char 
 *ora_best_row_id(Ns_DString * pds, Ns_DbHandle * dbh, char *table)
 {
-    log(lexpos(), "entry (pds %p, dbh %p, table %s", pds, dbh,
+    ns_ora_log(lexpos(), "entry (pds %p, dbh %p, table %s", pds, dbh,
         nilp(table));
 
     Ns_DStringNAppend(pds, "rowid", 6);
