@@ -48,7 +48,6 @@ OCI_VERSION=$(shell strings $(ORACLE_HOME)/lib/libclntsh.so | grep "^Version.[0-
 OCI_MAJOR_VERSION=$(shell echo $(OCI_VERSION) | cut -d ' ' -f2 | cut -d '.' -f1)
 NS_VERSION=$(shell grep NS_VERSION $(NSHOME)/include/ns.h)
 
-OCI_MAJOR_VERSION=10
 MODLIBS  =  -L$(ORACLE_HOME)/lib -lclntsh \
 	    -lcore$(OCI_MAJOR_VERSION) \
 	    -lcommon$(OCI_MAJOR_VERSION) \
