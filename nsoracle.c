@@ -156,8 +156,9 @@ OracleObjCmd (ClientData clientData, Tcl_Interp *interp,
         "clob_dml_bind", "clob_dml_file_bind", 
         "blob_dml_bind", "blob_dml_file_bind",
         "clob_dml", "clob_dml_file", 
-        "blob_dml", "blob_dml_file"
-        "write_clob", "write_blob"
+        "blob_dml", "blob_dml_file",
+        "write_clob", "write_blob",
+        NULL
     };
 
     enum ISubCmdIdx {
