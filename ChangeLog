@@ -1,4 +1,8 @@
-2006-02-21  Jeremy Collins <jeremy.collins@tclsource.org>
+2006-02-22  Jeremy Collins <jeremy.collins@beetlebug.org>
+    * nsoracle.c: 
+    Applied patch from Bug 1435901.  Add prefetching to ns_db.
+
+2006-02-21  Jeremy Collins <jeremy.collins@beetlebug.org>
     * nsoracle.c: 
     Applied patch from Bug 1435905.  
     Applied patch from Bug 1435911. 

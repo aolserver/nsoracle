@@ -3215,6 +3215,32 @@ Ns_OracleExec (Ns_DbHandle *dbh, char *sql)
 
     if (type == OCI_STMT_SELECT) {
         iters = 0;
+        if (prefetch_rows > 0) {
+            /* Set prefetch rows attr for selects. */
+            oci_status = OCIAttrSet(connection->stmt,
+                                    OCI_HTYPE_STMT,
+                                    (dvoid *) &prefetch_rows,
+                                    0,
+                                    OCI_ATTR_PREFETCH_ROWS,
+                                    connection->err);
+            if (oci_error_p(lexpos(), dbh, "OCIAttrSet", sql, oci_status)) {
+                Ns_OracleFlush(dbh);
+                return NS_ERROR;
+            }
+        }
+        if (prefetch_memory > 0) {
+            /* Set prefetch memory attr for selects. */
+            oci_status = OCIAttrSet(connection->stmt,
+                                    OCI_HTYPE_STMT,
+                                    (dvoid *) &prefetch_memory,
+                                    0,
+                                    OCI_ATTR_PREFETCH_MEMORY,
+                                    connection->err);
+            if (oci_error_p(lexpos(), dbh, "OCIAttrSet", sql, oci_status)) {
+                Ns_OracleFlush(dbh);
+                return NS_ERROR;
+            }
+        }
     } else {
         iters = 1;
     }
