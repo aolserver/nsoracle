@@ -1,6 +1,9 @@
 2006-02-22  Jeremy Collins <jeremy.collins@beetlebug.org>
     * nsoracle.c: 
     Applied patch from Bug 1435901.  Add prefetching to ns_db.
+    Fix for bug 1435192.  The code to handle fetching LONG data
+    types piecewise wasn't correctly using the null indicator
+    variables.
 
 2006-02-21  Jeremy Collins <jeremy.collins@beetlebug.org>
     * nsoracle.c: 

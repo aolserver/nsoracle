@@ -3756,7 +3756,8 @@ Ns_OracleGetRow (Ns_DbHandle *dbh, Ns_Set *row)
                                                                buf +
                                                                fetchbuf->
                                                                fetch_length),
-                                                     &ret_len, piece, NULL,
+                                                     &ret_len, piece, 
+                                                     &fetchbuf->is_null,
                                                      NULL);
 
                     if (oci_error_p
