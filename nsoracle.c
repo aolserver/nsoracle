@@ -566,7 +566,17 @@ OracleExecPLSQL (Tcl_Interp *interp, int objc,
     ora_connection_t  *connection;
     oci_status_t       oci_status;
     char              *query, *buf;
-      
+
+    /* This indicator variable is a dummy.  We don't actually check the
+     * status.  Previously, we set the indp parameter to OCIBindByPos to
+     * 0.  Oracle would throw ORA-01405 and we would specifically ignore
+     * it in tcl_error_p.  Now we pass this dummy variable, and Oracle
+     * returns OCI_SUCCESS whether or not the returned value is NULL.
+     * This eliminates the need for explicitly handling ORA-01405 in
+     * tcl_error_p. */
+
+    sb2               null_indicator;
+
     if (objc != 4) {
         Tcl_WrongNumArgs(interp, 2, objv, 
                 "dbhandle dbId sql");
@@ -616,7 +626,7 @@ OracleExecPLSQL (Tcl_Interp *interp, int objc,
 			       buf,
 			       EXEC_PLSQL_BUFFER_SIZE,
 			       SQLT_STR,
-			       0,
+			       &null_indicator,
 			       0,
 			       0,
 			       0,
@@ -4386,10 +4396,6 @@ tcl_error_p(const char *file, int line, const char *fn,
                                       &errorcode,
                                       errorbuf,
                                       sizeof errorbuf, OCI_HTYPE_ERROR);
-
-            if (errorcode == 1405) {
-                return 0;
-            }
 
             if (oci_status1) {
                 snprintf(msgbuf, STACK_BUFFER_SIZE, "`OCIErrorGet ()' error");
