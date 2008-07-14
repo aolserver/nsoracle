@@ -2928,7 +2928,7 @@ Ns_OracleOpenDb (Ns_DbHandle *dbh)
                               Ns_OracleRealloc,
                               Ns_OracleFree,
                               0, 0);
-    if (oci_error_p(lexpos(), NULL, "OCIEnvInit", 0, oci_status))
+    if (oci_error_p(lexpos(), NULL, "OCIEnvCreate", 0, oci_status))
         return NS_ERROR;
 
 
