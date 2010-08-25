@@ -575,7 +575,7 @@ OracleExecPLSQL (Tcl_Interp *interp, int objc,
      * This eliminates the need for explicitly handling ORA-01405 in
      * tcl_error_p. */
 
-    sb2               null_indicator;
+    sb2               null_indicator = OCI_IND_NULL;
 
     if (objc != 4) {
         Tcl_WrongNumArgs(interp, 2, objv, 
