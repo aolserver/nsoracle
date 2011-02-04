@@ -2922,7 +2922,7 @@ Ns_OracleOpenDb (Ns_DbHandle *dbh)
     dbh->connection = connection;
 
     oci_status = OCIEnvCreate(&connection->env,
-                              OCI_ENV_NO_MUTEX|OCI_DEFAULT,
+                              OCI_THREADED,
                               NULL,
                               Ns_OracleMalloc,
                               Ns_OracleRealloc,
