@@ -4571,6 +4571,7 @@ free_fetch_buffers(ora_connection_t * connection)
     if (connection != NULL && connection->fetch_buffers != NULL) {
         Ns_DbHandle *dbh = connection->dbh;
         int i;
+        int j;
         oci_status_t oci_status;
 
         for (i = 0; i < connection->n_columns; i++) {
@@ -4606,8 +4607,8 @@ free_fetch_buffers(ora_connection_t * connection)
             }
 
             if (fetchbuf->lobs != 0) {
-                for (i = 0; i < fetchbuf->n_rows; i++) {
-                    oci_status = OCIDescriptorFree(fetchbuf->lobs[i],
+                for (j = 0; j < fetchbuf->n_rows; j++) {
+                    oci_status = OCIDescriptorFree(fetchbuf->lobs[j],
                                                    OCI_DTYPE_LOB);
                     oci_error_p(lexpos(), dbh, "OCIDescriptorFree", 0,
                                 oci_status);
